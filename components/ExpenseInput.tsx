@@ -8,7 +8,7 @@ import {
   Platform,
   type TextInput as RNTextInput,
 } from 'react-native';
-import { StyleSheet } from 'react-native-unistyles';
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { insertTransaction } from '../db/database';
@@ -22,6 +22,7 @@ const CATEGORIES: { id: Category; label: string; color: string }[] = [
 ];
 
 export function ExpenseInput() {
+  const { styles } = useStyles(stylesheet);
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [category, setCategory] = useState<Category>('needs');
@@ -30,7 +31,6 @@ export function ExpenseInput() {
   const noteRef = useRef<RNTextInput>(null);
 
   const triggerRefresh = useBudgetStore((s) => s.triggerRefresh);
-
   const activeColor = CATEGORIES.find((c) => c.id === category)!.color;
 
   function validate(): string | null {
@@ -43,22 +43,15 @@ export function ExpenseInput() {
 
   async function handleSubmit() {
     const validationError = validate();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
+    if (validationError) { setError(validationError); return; }
     setError(null);
     setLoading(true);
     try {
-      await insertTransaction(
-        parseFloat(amount.replace(',', '.')),
-        category,
-        note,
-      );
+      await insertTransaction(parseFloat(amount.replace(',', '.')), category, note);
       triggerRefresh();
       setAmount('');
       setNote('');
-    } catch (e) {
+    } catch {
       setError('Failed to save. Please try again.');
     } finally {
       setLoading(false);
@@ -66,22 +59,18 @@ export function ExpenseInput() {
   }
 
   return (
-    <View style={stylesheet.container}>
-      {/* Category selector */}
-      <View style={stylesheet.categoryRow}>
+    <View style={styles.container}>
+      <View style={styles.categoryRow}>
         {CATEGORIES.map((cat) => {
           const active = category === cat.id;
           return (
             <TouchableOpacity
               key={cat.id}
-              style={[
-                stylesheet.categoryChip,
-                active && { borderColor: cat.color, backgroundColor: `${cat.color}18` },
-              ]}
+              style={[styles.categoryChip, active && { borderColor: cat.color, backgroundColor: `${cat.color}18` }]}
               onPress={() => { setCategory(cat.id); setError(null); }}
               activeOpacity={0.7}
             >
-              <Text style={[stylesheet.categoryLabel, { color: active ? cat.color : '#4A5168' }]}>
+              <Text style={[styles.categoryLabel, { color: active ? cat.color : '#4A5168' }]}>
                 {cat.label}
               </Text>
             </TouchableOpacity>
@@ -89,15 +78,10 @@ export function ExpenseInput() {
         })}
       </View>
 
-      {/* Amount input */}
-      <View style={[
-        stylesheet.inputWrapper,
-        error ? stylesheet.inputError : null,
-        { borderColor: error ? '#FF2D78' : amount ? activeColor + '60' : 'rgba(255,255,255,0.06)' },
-      ]}>
-        <Text style={[stylesheet.currencySymbol, { color: activeColor }]}>$</Text>
+      <View style={[styles.inputWrapper, error ? styles.inputError : undefined, { borderColor: error ? '#FF2D78' : amount ? `${activeColor}60` : 'rgba(255,255,255,0.06)' }]}>
+        <Text style={[styles.currencySymbol, { color: activeColor }]}>$</Text>
         <TextInput
-          style={stylesheet.amountInput}
+          style={styles.amountInput}
           placeholder="0.00"
           placeholderTextColor="#4A5168"
           value={amount}
@@ -110,15 +94,11 @@ export function ExpenseInput() {
         />
       </View>
 
-      {/* Note input */}
-      <View style={[
-        stylesheet.inputWrapper,
-        { borderColor: note ? activeColor + '40' : 'rgba(255,255,255,0.06)' },
-      ]}>
-        <Icon name="pencil-outline" size={16} color="#4A5168" style={stylesheet.noteIcon} />
+      <View style={[styles.inputWrapper, { borderColor: note ? `${activeColor}40` : 'rgba(255,255,255,0.06)' }]}>
+        <Icon name="pencil-outline" size={16} color="#4A5168" style={styles.noteIcon} />
         <TextInput
           ref={noteRef}
-          style={stylesheet.noteInput}
+          style={styles.noteInput}
           placeholder="Add a note (optional)"
           placeholderTextColor="#4A5168"
           value={note}
@@ -130,35 +110,23 @@ export function ExpenseInput() {
         />
       </View>
 
-      {/* Error */}
       {error && (
-        <View style={stylesheet.errorRow}>
+        <View style={styles.errorRow}>
           <Icon name="alert-circle-outline" size={13} color="#FF2D78" />
-          <Text style={stylesheet.errorText}>{error}</Text>
+          <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
 
-      {/* Submit */}
-      <TouchableOpacity
-        onPress={handleSubmit}
-        disabled={loading}
-        activeOpacity={0.8}
-        style={stylesheet.submitOuter}
-      >
+      <TouchableOpacity onPress={handleSubmit} disabled={loading} activeOpacity={0.8} style={styles.submitOuter}>
         <LinearGradient
-          colors={[activeColor + 'CC', activeColor + '88']}
+          colors={[`${activeColor}CC`, `${activeColor}88`]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
-          style={stylesheet.submitGradient}
+          style={styles.submitGradient}
         >
           {loading
             ? <ActivityIndicator color="#000" size="small" />
-            : (
-              <>
-                <Icon name="plus" size={18} color="#000" />
-                <Text style={stylesheet.submitLabel}>Add Transaction</Text>
-              </>
-            )
+            : (<><Icon name="plus" size={18} color="#000" /><Text style={styles.submitLabel}>Add Transaction</Text></>)
           }
         </LinearGradient>
       </TouchableOpacity>
@@ -166,11 +134,11 @@ export function ExpenseInput() {
   );
 }
 
-const stylesheet = StyleSheet.create((theme) => ({
+const stylesheet = createStyleSheet((theme) => ({
   container: {
     gap: theme.spacing.sm,
     width: '100%',
-    ...(Platform.OS === 'web' && { maxWidth: 480 }),
+    ...(Platform.OS === 'web' ? { maxWidth: 480 } : {}),
   },
   categoryRow: {
     flexDirection: 'row',
@@ -212,9 +180,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     // @ts-ignore — web only
     outlineStyle: Platform.OS === 'web' ? 'none' : undefined,
   },
-  noteIcon: {
-    marginRight: theme.spacing.sm,
-  },
+  noteIcon: { marginRight: theme.spacing.sm },
   noteInput: {
     flex: 1,
     ...theme.typography.bodyLarge,
@@ -228,15 +194,8 @@ const stylesheet = StyleSheet.create((theme) => ({
     gap: theme.spacing.xs,
     paddingHorizontal: theme.spacing.xs,
   },
-  errorText: {
-    ...theme.typography.bodyMedium,
-    color: '#FF2D78',
-  },
-  submitOuter: {
-    borderRadius: theme.radius.md,
-    overflow: 'hidden',
-    marginTop: theme.spacing.xs,
-  },
+  errorText: { ...theme.typography.bodyMedium, color: '#FF2D78' },
+  submitOuter: { borderRadius: theme.radius.md, overflow: 'hidden', marginTop: theme.spacing.xs },
   submitGradient: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -244,8 +203,5 @@ const stylesheet = StyleSheet.create((theme) => ({
     gap: theme.spacing.sm,
     height: 52,
   },
-  submitLabel: {
-    ...theme.typography.headingMedium,
-    color: '#000000',
-  },
+  submitLabel: { ...theme.typography.headingMedium, color: '#000000' },
 }));

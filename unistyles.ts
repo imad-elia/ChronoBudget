@@ -2,33 +2,27 @@ import { UnistylesRegistry } from 'react-native-unistyles';
 
 const theme = {
   colors: {
-    // Backgrounds
     bgPrimary: '#000000',
     bgSecondary: '#0A0A0F',
     bgTertiary: '#0F0F1A',
 
-    // Surface cards (glassmorphism)
     surface: '#111827',
     surfaceRaised: '#1A2035',
     glassBorder: 'rgba(255,255,255,0.08)',
     glassHighlight: 'rgba(255,255,255,0.04)',
 
-    // Neon accents
     neonGreen: '#00FF87',
     neonPink: '#FF2D78',
     neonBlue: '#00BFFF',
 
-    // Neon glows
     glowGreen: 'rgba(0,255,135,0.15)',
     glowPink: 'rgba(255,45,120,0.15)',
     glowBlue: 'rgba(0,191,255,0.15)',
 
-    // Text
     textPrimary: '#F8F9FF',
     textSecondary: '#8B92A5',
     textMuted: '#4A5168',
 
-    // UI
     border: 'rgba(255,255,255,0.06)',
     divider: 'rgba(255,255,255,0.04)',
     overlay: 'rgba(0,0,0,0.72)',
@@ -92,22 +86,14 @@ const theme = {
       elevation: 12,
     },
   },
-
-  breakpoints: {
-    xs: 0,
-    sm: 480,
-    md: 768,
-    lg: 1024,
-    xl: 1280,
-  },
 } as const;
 
 type AppTheme = typeof theme;
 
-UnistylesRegistry.addThemes({ dark: theme }).addConfig({
-  adaptiveThemes: false,
-  initialTheme: 'dark',
-});
+UnistylesRegistry
+  .addThemes({ dark: theme })
+  .addBreakpoints({ xs: 0, sm: 480, md: 768, lg: 1024, xl: 1280 })
+  .addConfig({ adaptiveThemes: false, initialTheme: 'dark' });
 
 declare module 'react-native-unistyles' {
   export interface UnistylesThemes {

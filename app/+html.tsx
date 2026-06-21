@@ -29,11 +29,22 @@ export default function Root({ children }: { children: ReactNode }) {
 }
 
 const responsiveBackground = `
-body {
-  background-color: #fff;
+html, body {
+  height: 100%;
+  background-color: #000;
 }
-@media (prefers-color-scheme: dark) {
-  body {
-    background-color: #000;
-  }
+#root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #000;
+}
+/* Force Expo Router / React Navigation navigation containers to fill height.
+   These wrappers render with flex-grow:0 by default, collapsing screen content. */
+#root > div,
+#root > div > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }`;

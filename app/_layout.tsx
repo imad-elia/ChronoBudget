@@ -2,8 +2,8 @@ import '../unistyles';
 
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet } from 'react-native-unistyles';
 
 export default function RootLayout() {
   return (
@@ -14,12 +14,8 @@ export default function RootLayout() {
   );
 }
 
-const styles = StyleSheet.create((theme) => ({
-  root: {
-    flex: 1,
-    backgroundColor: theme.colors.bgPrimary,
-  },
-  content: {
-    backgroundColor: theme.colors.bgPrimary,
-  },
-}));
+// Plain RN StyleSheet here — unistyles is initialised above, available to child components
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#000000' },
+  content: { backgroundColor: '#000000' },
+});

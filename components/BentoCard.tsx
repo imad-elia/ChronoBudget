@@ -1,6 +1,6 @@
 import { View, Text, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet } from 'react-native-unistyles';
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import type { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 
@@ -14,6 +14,8 @@ interface BentoCardProps {
 }
 
 export function BentoCard({ title, amount, color, glowColor, gradientColors, icon }: BentoCardProps) {
+  const { styles } = useStyles(stylesheet);
+
   const formatted = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -21,29 +23,29 @@ export function BentoCard({ title, amount, color, glowColor, gradientColors, ico
   }).format(amount);
 
   return (
-    <View style={[stylesheet.wrapper, { shadowColor: glowColor }]}>
+    <View style={[styles.wrapper, { shadowColor: glowColor }]}>
       <LinearGradient
         colors={gradientColors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={stylesheet.gradient}
+        style={styles.gradient}
       >
-        <View style={stylesheet.header}>
-          <View style={[stylesheet.iconRing, { borderColor: color, backgroundColor: `${color}18` }]}>
+        <View style={styles.header}>
+          <View style={[styles.iconRing, { borderColor: color, backgroundColor: `${color}18` }]}>
             <Icon name={icon} size={18} color={color} />
           </View>
-          <Text style={[stylesheet.title, { color }]}>{title}</Text>
+          <Text style={[styles.title, { color }]}>{title}</Text>
         </View>
-        <Text style={stylesheet.amount} numberOfLines={1} adjustsFontSizeToFit>
+        <Text style={styles.amount} numberOfLines={1} adjustsFontSizeToFit>
           {formatted}
         </Text>
-        <View style={[stylesheet.accentLine, { backgroundColor: color }]} />
+        <View style={[styles.accentLine, { backgroundColor: color }]} />
       </LinearGradient>
     </View>
   );
 }
 
-const stylesheet = StyleSheet.create((theme) => ({
+const stylesheet = createStyleSheet((theme) => ({
   wrapper: {
     flex: 1,
     minWidth: 140,
@@ -52,7 +54,7 @@ const stylesheet = StyleSheet.create((theme) => ({
     shadowOpacity: 0.35,
     shadowRadius: 16,
     elevation: 10,
-    ...(Platform.OS === 'web' && { maxWidth: 320 }),
+    ...(Platform.OS === 'web' ? { maxWidth: 320 } : {}),
   },
   gradient: {
     flex: 1,

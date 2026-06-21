@@ -4,7 +4,6 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  Platform,
   useWindowDimensions,
 } from 'react-native';
 import Animated, {
@@ -15,7 +14,7 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import { StyleSheet } from 'react-native-unistyles';
+import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -58,31 +57,15 @@ const BENTO_CONFIG = [
 
 // ─── Transaction row ──────────────────────────────────────────────────────────
 
-function TransactionRow({
-  item,
-  onDelete,
-}: {
-  item: Transaction;
-  onDelete: (id: number) => void;
-}) {
+function TransactionRow({ item, onDelete }: { item: Transaction; onDelete: (id: number) => void }) {
+  const { styles: rowStyles } = useStyles(rowStylesheet);
   const config = BENTO_CONFIG.find((c) => c.id === item.category)!;
   const scale = useSharedValue(1);
-
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  function handlePressIn() { scale.value = withSpring(0.97, { damping: 20 }); }
-  function handlePressOut() { scale.value = withSpring(1, { damping: 20 }); }
-
-  const formatted = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(item.amount);
-
+  const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(item.amount);
   const date = new Date(item.timestamp).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 
   return (
@@ -93,23 +76,21 @@ function TransactionRow({
       style={animStyle}
     >
       <TouchableOpacity
-        style={rowSheet.row}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
+        style={rowStyles.row}
+        onPressIn={() => { scale.value = withSpring(0.97, { damping: 20 }); }}
+        onPressOut={() => { scale.value = withSpring(1, { damping: 20 }); }}
         activeOpacity={1}
       >
-        <View style={[rowSheet.iconWrap, { backgroundColor: `${config.color}18`, borderColor: `${config.color}40` }]}>
+        <View style={[rowStyles.iconWrap, { backgroundColor: `${config.color}18`, borderColor: `${config.color}40` }]}>
           <Icon name={config.icon} size={18} color={config.color} />
         </View>
-        <View style={rowSheet.meta}>
-          <Text style={rowSheet.note} numberOfLines={1}>
-            {item.note || config.title}
-          </Text>
-          <Text style={rowSheet.date}>{date}</Text>
+        <View style={rowStyles.meta}>
+          <Text style={rowStyles.note} numberOfLines={1}>{item.note || config.title}</Text>
+          <Text style={rowStyles.date}>{date}</Text>
         </View>
-        <Text style={[rowSheet.amount, { color: config.color }]}>{formatted}</Text>
+        <Text style={[rowStyles.amount, { color: config.color }]}>{formatted}</Text>
         <TouchableOpacity
-          style={rowSheet.deleteBtn}
+          style={rowStyles.deleteBtn}
           onPress={() => onDelete(item.id)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
@@ -120,7 +101,7 @@ function TransactionRow({
   );
 }
 
-const rowSheet = StyleSheet.create((theme) => ({
+const rowStylesheet = createStyleSheet((theme) => ({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -140,119 +121,63 @@ const rowSheet = StyleSheet.create((theme) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  meta: {
-    flex: 1,
-    gap: 2,
-  },
-  note: {
-    ...theme.typography.bodyLarge,
-    color: theme.colors.textPrimary,
-  },
-  date: {
-    ...theme.typography.bodyMedium,
-    color: theme.colors.textMuted,
-  },
-  amount: {
-    ...theme.typography.headingMedium,
-  },
-  deleteBtn: {
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  meta: { flex: 1, gap: 2 },
+  note: { ...theme.typography.bodyLarge, color: theme.colors.textPrimary },
+  date: { ...theme.typography.bodyMedium, color: theme.colors.textMuted },
+  amount: { ...theme.typography.headingMedium },
+  deleteBtn: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
 }));
 
 // ─── Dashboard header ─────────────────────────────────────────────────────────
 
 function DashboardHeader({ totals }: { totals: CategoryTotals }) {
+  const { styles: headerStyles } = useStyles(headerStylesheet);
   const total = totals.needs + totals.wants + totals.savings;
-
-  const formatted = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 2,
-  }).format(total);
+  const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(total);
 
   return (
-    <View style={headerSheet.container}>
-      <Text style={headerSheet.label}>TOTAL SPENT</Text>
-      <Text style={headerSheet.balance} numberOfLines={1} adjustsFontSizeToFit>
-        {formatted}
-      </Text>
-      <View style={headerSheet.grid}>
+    <View style={headerStyles.container}>
+      <Text style={headerStyles.label}>TOTAL SPENT</Text>
+      <Text style={headerStyles.balance} numberOfLines={1} adjustsFontSizeToFit>{formatted}</Text>
+      <View style={headerStyles.grid}>
         {BENTO_CONFIG.map((c) => (
-          <BentoCard
-            key={c.id}
-            title={c.title}
-            amount={totals[c.id]}
-            color={c.color}
-            glowColor={c.glowColor}
-            gradientColors={c.gradientColors}
-            icon={c.icon}
-          />
+          <BentoCard key={c.id} title={c.title} amount={totals[c.id]} color={c.color} glowColor={c.glowColor} gradientColors={c.gradientColors} icon={c.icon} />
         ))}
       </View>
-      <Text style={headerSheet.sectionLabel}>RECENT</Text>
+      <Text style={headerStyles.sectionLabel}>RECENT</Text>
     </View>
   );
 }
 
-const headerSheet = StyleSheet.create((theme) => ({
-  container: {
-    paddingTop: theme.spacing.lg,
-    paddingBottom: theme.spacing.md,
-  },
-  label: {
-    ...theme.typography.labelLarge,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-    marginBottom: theme.spacing.xs,
-  },
-  balance: {
-    ...theme.typography.displayLarge,
-    color: theme.colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: theme.spacing.lg,
-  },
-  grid: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: theme.spacing.lg,
-  },
-  sectionLabel: {
-    ...theme.typography.labelLarge,
-    color: theme.colors.textMuted,
-    marginBottom: theme.spacing.sm,
-  },
+const headerStylesheet = createStyleSheet((theme) => ({
+  container: { paddingTop: theme.spacing.lg, paddingBottom: theme.spacing.md },
+  label: { ...theme.typography.labelLarge, color: theme.colors.textMuted, textAlign: 'center', marginBottom: theme.spacing.xs },
+  balance: { ...theme.typography.displayLarge, color: theme.colors.textPrimary, textAlign: 'center', marginBottom: theme.spacing.lg },
+  grid: { flexDirection: 'row', gap: 10, marginBottom: theme.spacing.lg },
+  sectionLabel: { ...theme.typography.labelLarge, color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
 }));
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
 function EmptyState() {
+  const { styles: emptyStyles } = useStyles(emptyStylesheet);
   return (
-    <View style={emptySheet.wrap}>
+    <View style={emptyStyles.wrap}>
       <Icon name="receipt-text-outline" size={40} color="#4A5168" />
-      <Text style={emptySheet.text}>No transactions yet</Text>
+      <Text style={emptyStyles.text}>No transactions yet</Text>
     </View>
   );
 }
 
-const emptySheet = StyleSheet.create((theme) => ({
-  wrap: {
-    alignItems: 'center',
-    paddingVertical: theme.spacing.xxl,
-    gap: theme.spacing.md,
-  },
-  text: {
-    ...theme.typography.bodyLarge,
-    color: theme.colors.textMuted,
-  },
+const emptyStylesheet = createStyleSheet((theme) => ({
+  wrap: { alignItems: 'center', paddingVertical: theme.spacing.xxl, gap: theme.spacing.md },
+  text: { ...theme.typography.bodyLarge, color: theme.colors.textMuted },
 }));
 
 // ─── Dashboard screen ─────────────────────────────────────────────────────────
 
 export default function DashboardScreen() {
+  const { styles } = useStyles(stylesheet);
   const [totals, setTotals] = useState<CategoryTotals>({ needs: 0, wants: 0, savings: 0 });
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [dbReady, setDbReady] = useState(false);
@@ -262,9 +187,7 @@ export default function DashboardScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
 
-  useEffect(() => {
-    initDb().then(() => setDbReady(true));
-  }, []);
+  useEffect(() => { initDb().then(() => setDbReady(true)); }, []);
 
   useEffect(() => {
     if (!dbReady) return;
@@ -278,33 +201,25 @@ export default function DashboardScreen() {
   }, []);
 
   const renderItem = useCallback(
-    ({ item }: { item: Transaction }) => (
-      <TransactionRow item={item} onDelete={handleDelete} />
-    ),
+    ({ item }: { item: Transaction }) => <TransactionRow item={item} onDelete={handleDelete} />,
     [handleDelete],
   );
-
-  const keyExtractor = useCallback((item: Transaction) => String(item.id), []);
 
   return (
     <View style={styles.screen}>
       <View style={[styles.frame, isWide && styles.frameWide]}>
         <FlatList
           data={transactions}
-          keyExtractor={keyExtractor}
+          keyExtractor={(item) => String(item.id)}
           renderItem={renderItem}
           ListHeaderComponent={<DashboardHeader totals={totals} />}
           ListEmptyComponent={<EmptyState />}
-          contentContainerStyle={[
-            styles.listContent,
-            { paddingBottom: insets.bottom + 16 },
-          ]}
+          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 16 }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           itemLayoutAnimation={LinearTransition.springify().damping(18)}
         />
-
         <View style={[styles.footer, { paddingBottom: insets.bottom + 8 }]}>
           <ExpenseInput />
         </View>
@@ -313,23 +228,11 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create((theme) => ({
-  screen: {
-    flex: 1,
-    backgroundColor: theme.colors.bgPrimary,
-    alignItems: 'center',
-  },
-  frame: {
-    flex: 1,
-    width: '100%',
-  },
-  frameWide: {
-    maxWidth: 600,
-    width: '100%',
-  },
-  listContent: {
-    paddingHorizontal: theme.spacing.md,
-  },
+const stylesheet = createStyleSheet((theme) => ({
+  screen: { flex: 1, backgroundColor: theme.colors.bgPrimary, alignItems: 'center' },
+  frame: { flex: 1, width: '100%' },
+  frameWide: { maxWidth: 600, width: '100%' },
+  listContent: { paddingHorizontal: theme.spacing.md },
   footer: {
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.md,
