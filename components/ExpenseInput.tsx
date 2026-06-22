@@ -6,23 +6,23 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Platform,
+  StyleSheet,
   type TextInput as RNTextInput,
 } from 'react-native';
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { insertTransaction } from '../db/database';
 import { useBudgetStore } from '../store/useBudgetStore';
 import type { Category } from '../store/useBudgetStore';
+import { theme } from '../theme';
 
 const CATEGORIES: { id: Category; label: string; color: string }[] = [
-  { id: 'needs', label: 'Needs', color: '#00FF87' },
-  { id: 'wants', label: 'Wants', color: '#FF2D78' },
+  { id: 'needs',   label: 'Needs',   color: '#00FF87' },
+  { id: 'wants',   label: 'Wants',   color: '#FF2D78' },
   { id: 'savings', label: 'Savings', color: '#00BFFF' },
 ];
 
 export function ExpenseInput() {
-  const { styles } = useStyles(stylesheet);
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [category, setCategory] = useState<Category>('needs');
@@ -70,7 +70,7 @@ export function ExpenseInput() {
               onPress={() => { setCategory(cat.id); setError(null); }}
               activeOpacity={0.7}
             >
-              <Text style={[styles.categoryLabel, { color: active ? cat.color : '#4A5168' }]}>
+              <Text style={[styles.categoryLabel, { color: active ? cat.color : theme.colors.textMuted }]}>
                 {cat.label}
               </Text>
             </TouchableOpacity>
@@ -78,12 +78,16 @@ export function ExpenseInput() {
         })}
       </View>
 
-      <View style={[styles.inputWrapper, error ? styles.inputError : undefined, { borderColor: error ? '#FF2D78' : amount ? `${activeColor}60` : 'rgba(255,255,255,0.06)' }]}>
+      <View style={[
+        styles.inputWrapper,
+        error ? styles.inputError : undefined,
+        { borderColor: error ? '#FF2D78' : amount ? `${activeColor}60` : theme.colors.border },
+      ]}>
         <Text style={[styles.currencySymbol, { color: activeColor }]}>$</Text>
         <TextInput
           style={styles.amountInput}
           placeholder="0.00"
-          placeholderTextColor="#4A5168"
+          placeholderTextColor={theme.colors.textMuted}
           value={amount}
           onChangeText={(v) => { setAmount(v); setError(null); }}
           keyboardType="decimal-pad"
@@ -94,13 +98,13 @@ export function ExpenseInput() {
         />
       </View>
 
-      <View style={[styles.inputWrapper, { borderColor: note ? `${activeColor}40` : 'rgba(255,255,255,0.06)' }]}>
-        <Icon name="pencil-outline" size={16} color="#4A5168" style={styles.noteIcon} />
+      <View style={[styles.inputWrapper, { borderColor: note ? `${activeColor}40` : theme.colors.border }]}>
+        <Icon name="pencil-outline" size={16} color={theme.colors.textMuted} style={styles.noteIcon} />
         <TextInput
           ref={noteRef}
           style={styles.noteInput}
           placeholder="Add a note (optional)"
-          placeholderTextColor="#4A5168"
+          placeholderTextColor={theme.colors.textMuted}
           value={note}
           onChangeText={setNote}
           returnKeyType="done"
@@ -134,11 +138,10 @@ export function ExpenseInput() {
   );
 }
 
-const stylesheet = createStyleSheet((theme) => ({
+const styles = StyleSheet.create({
   container: {
     gap: theme.spacing.sm,
     width: '100%',
-    ...(Platform.OS === 'web' ? { maxWidth: 480 } : {}),
   },
   categoryRow: {
     flexDirection: 'row',
@@ -150,7 +153,7 @@ const stylesheet = createStyleSheet((theme) => ({
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.radius.md,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: theme.colors.border,
     alignItems: 'center',
   },
   categoryLabel: {
@@ -177,16 +180,12 @@ const stylesheet = createStyleSheet((theme) => ({
     flex: 1,
     ...theme.typography.headingLarge,
     color: theme.colors.textPrimary,
-    // @ts-ignore — web only
-    outlineStyle: Platform.OS === 'web' ? 'none' : undefined,
   },
   noteIcon: { marginRight: theme.spacing.sm },
   noteInput: {
     flex: 1,
     ...theme.typography.bodyLarge,
     color: theme.colors.textPrimary,
-    // @ts-ignore — web only
-    outlineStyle: Platform.OS === 'web' ? 'none' : undefined,
   },
   errorRow: {
     flexDirection: 'row',
@@ -204,4 +203,4 @@ const stylesheet = createStyleSheet((theme) => ({
     height: 52,
   },
   submitLabel: { ...theme.typography.headingMedium, color: '#000000' },
-}));
+});

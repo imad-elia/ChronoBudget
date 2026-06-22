@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import type { Category, Transaction, CategoryTotals } from '../store/useBudgetStore';
+import type { Category, Transaction, CategoryTotals, CategoryLimits } from '../store/useBudgetStore';
 
 let db: SQLite.SQLiteDatabase | null = null;
 
@@ -10,27 +10,46 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   return db;
 }
 
+const SCHEMA_VERSION = 2;
+
 export async function initDb(): Promise<void> {
   const database = await getDb();
-  await database.execAsync(`
-    PRAGMA journal_mode = WAL;
-    PRAGMA foreign_keys = ON;
+  await database.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
 
-    CREATE TABLE IF NOT EXISTS transactions (
-      id        INTEGER PRIMARY KEY AUTOINCREMENT,
-      amount    REAL    NOT NULL CHECK(amount > 0),
-      category  TEXT    NOT NULL CHECK(category IN ('needs', 'wants', 'savings')),
-      note      TEXT    NOT NULL DEFAULT '',
-      timestamp INTEGER NOT NULL DEFAULT (unixepoch())
-    );
+  const [{ user_version }] = await database.getAllAsync<{ user_version: number }>(
+    'PRAGMA user_version',
+  );
 
-    CREATE INDEX IF NOT EXISTS idx_transactions_category
-      ON transactions(category);
+  if (user_version < 1) {
+    await database.execAsync(`
+      DROP TABLE IF EXISTS transactions;
 
-    CREATE INDEX IF NOT EXISTS idx_transactions_timestamp
-      ON transactions(timestamp DESC);
-  `);
+      CREATE TABLE transactions (
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        amount    REAL    NOT NULL CHECK(amount > 0),
+        category  TEXT    NOT NULL CHECK(category IN ('needs', 'wants', 'savings')),
+        note      TEXT    NOT NULL DEFAULT '',
+        timestamp INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+
+      CREATE INDEX idx_transactions_category ON transactions(category);
+      CREATE INDEX idx_transactions_timestamp ON transactions(timestamp DESC);
+    `);
+  }
+
+  if (user_version < 2) {
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS budget_limits (
+        category TEXT PRIMARY KEY CHECK(category IN ('needs', 'wants', 'savings')),
+        amount   REAL NOT NULL CHECK(amount > 0)
+      );
+    `);
+  }
+
+  await database.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION};`);
 }
+
+// ─── Transactions ─────────────────────────────────────────────────────────────
 
 export async function insertTransaction(
   amount: number,
@@ -76,4 +95,57 @@ export async function fetchRecentTransactions(limit = 20): Promise<Transaction[]
      LIMIT ?`,
     limit,
   );
+}
+
+export async function fetchTransactions(
+  limit = 500,
+  category?: Category,
+): Promise<Transaction[]> {
+  const database = await getDb();
+  if (category) {
+    return database.getAllAsync<Transaction>(
+      `SELECT id, amount, category, note, timestamp
+       FROM transactions
+       WHERE category = ?
+       ORDER BY timestamp DESC
+       LIMIT ?`,
+      category,
+      limit,
+    );
+  }
+  return database.getAllAsync<Transaction>(
+    `SELECT id, amount, category, note, timestamp
+     FROM transactions
+     ORDER BY timestamp DESC
+     LIMIT ?`,
+    limit,
+  );
+}
+
+// ─── Budget limits ────────────────────────────────────────────────────────────
+
+export async function fetchLimits(): Promise<CategoryLimits> {
+  const database = await getDb();
+  const rows = await database.getAllAsync<{ category: Category; amount: number }>(
+    'SELECT category, amount FROM budget_limits',
+  );
+  const limits: CategoryLimits = { needs: 0, wants: 0, savings: 0 };
+  for (const row of rows) {
+    limits[row.category] = row.amount;
+  }
+  return limits;
+}
+
+export async function setLimit(category: Category, amount: number): Promise<void> {
+  const database = await getDb();
+  if (amount <= 0) {
+    await database.runAsync('DELETE FROM budget_limits WHERE category = ?', category);
+  } else {
+    await database.runAsync(
+      `INSERT INTO budget_limits (category, amount) VALUES (?, ?)
+       ON CONFLICT(category) DO UPDATE SET amount = excluded.amount`,
+      category,
+      amount,
+    );
+  }
 }

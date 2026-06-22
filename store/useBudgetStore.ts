@@ -16,6 +16,8 @@ interface CategoryTotals {
   savings: number;
 }
 
+type CategoryLimits = CategoryTotals; // same shape: { needs, wants, savings } in dollars (0 = no limit)
+
 interface BudgetStore {
   refreshCounter: number;
   triggerRefresh: () => void;
@@ -24,6 +26,9 @@ interface BudgetStore {
   recentTransactions: Transaction[];
   setCategoryTotals: (totals: CategoryTotals) => void;
   setRecentTransactions: (transactions: Transaction[]) => void;
+
+  limits: CategoryLimits;
+  setLimits: (limits: CategoryLimits) => void;
 }
 
 export const useBudgetStore = create<BudgetStore>((set) => ({
@@ -34,6 +39,9 @@ export const useBudgetStore = create<BudgetStore>((set) => ({
   recentTransactions: [],
   setCategoryTotals: (totals) => set({ categoryTotals: totals }),
   setRecentTransactions: (transactions) => set({ recentTransactions: transactions }),
+
+  limits: { needs: 0, wants: 0, savings: 0 },
+  setLimits: (limits) => set({ limits }),
 }));
 
-export type { Transaction, Category, CategoryTotals };
+export type { Transaction, Category, CategoryTotals, CategoryLimits };

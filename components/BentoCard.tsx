@@ -1,8 +1,8 @@
-import { View, Text, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { createStyleSheet, useStyles } from 'react-native-unistyles';
 import type { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import { theme } from '../theme';
 
 interface BentoCardProps {
   title: string;
@@ -11,16 +11,27 @@ interface BentoCardProps {
   glowColor: string;
   gradientColors: [string, string, string];
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  limit?: number;
 }
 
-export function BentoCard({ title, amount, color, glowColor, gradientColors, icon }: BentoCardProps) {
-  const { styles } = useStyles(stylesheet);
+function progressColor(ratio: number, color: string): string {
+  if (ratio >= 1) return '#FF2D78';
+  if (ratio >= 0.9) return '#FF6B35';
+  if (ratio >= 0.7) return '#FFD166';
+  return color;
+}
 
+export function BentoCard({ title, amount, color, glowColor, gradientColors, icon, limit }: BentoCardProps) {
   const formatted = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: 2,
   }).format(amount);
+
+  const hasLimit = !!limit && limit > 0;
+  const ratio = hasLimit ? Math.min(amount / limit, 1) : 0;
+  const barColor = hasLimit ? progressColor(ratio, color) : color;
+  const pct = Math.round(ratio * 100);
 
   return (
     <View style={[styles.wrapper, { shadowColor: glowColor }]}>
@@ -36,25 +47,35 @@ export function BentoCard({ title, amount, color, glowColor, gradientColors, ico
           </View>
           <Text style={[styles.title, { color }]}>{title}</Text>
         </View>
+
         <Text style={styles.amount} numberOfLines={1} adjustsFontSizeToFit>
           {formatted}
         </Text>
-        <View style={[styles.accentLine, { backgroundColor: color }]} />
+
+        {hasLimit ? (
+          <View style={styles.progressSection}>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${pct}%` as `${number}%`, backgroundColor: barColor }]} />
+            </View>
+            <Text style={[styles.progressLabel, { color: barColor }]}>{pct}%</Text>
+          </View>
+        ) : (
+          <View style={[styles.accentLine, { backgroundColor: color }]} />
+        )}
       </LinearGradient>
     </View>
   );
 }
 
-const stylesheet = createStyleSheet((theme) => ({
+const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
-    minWidth: 140,
+    minWidth: 0,
     borderRadius: theme.radius.lg,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.35,
     shadowRadius: 16,
     elevation: 10,
-    ...(Platform.OS === 'web' ? { maxWidth: 320 } : {}),
   },
   gradient: {
     flex: 1,
@@ -94,4 +115,26 @@ const stylesheet = createStyleSheet((theme) => ({
     marginTop: theme.spacing.xs,
     opacity: 0.7,
   },
-}));
+  progressSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    marginTop: theme.spacing.xs,
+  },
+  progressTrack: {
+    flex: 1,
+    height: 3,
+    borderRadius: theme.radius.full,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: theme.radius.full,
+  },
+  progressLabel: {
+    ...theme.typography.labelSmall,
+    minWidth: 30,
+    textAlign: 'right',
+  },
+});
