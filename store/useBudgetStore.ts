@@ -45,4 +45,11 @@ export const useBudgetStore = create<BudgetStore>((set) => ({
   setLimits: (limits) => set({ limits }),
 }));
 
-export type { Transaction, Category, CategoryTotals, CategoryLimits };
+interface MonthlyTotal {
+  month: string;
+  needs: number;
+  wants: number;
+  savings: number;
+}
+
+export type { Transaction, Category, CategoryTotals, CategoryLimits, MonthlyTotal };

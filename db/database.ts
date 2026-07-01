@@ -1,20 +1,36 @@
+import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
-import type { Category, Transaction, CategoryTotals, CategoryLimits } from '../store/useBudgetStore';
+import type { Category, Transaction, CategoryTotals, CategoryLimits, MonthlyTotal } from '../store/useBudgetStore';
 
-let db: SQLite.SQLiteDatabase | null = null;
-
-export async function getDb(): Promise<SQLite.SQLiteDatabase> {
-  if (!db) {
-    db = await SQLite.openDatabaseAsync('chronobudget.db');
-  }
-  return db;
-}
+// Native uses a persistent on-disk SQLite file. Web uses an in-memory database:
+// expo-sqlite's web backend persists via the Origin Private File System (OPFS),
+// whose SyncAccessHandle locking is fragile in dev (worker/HMR crashes leave the
+// file locked, causing unrecoverable "sqlite3_open_v2" / "createSyncAccessHandle"
+// errors). Web is a dev-preview target only — the product is the mobile app — so
+// an in-memory DB (no OPFS, no locks, no corruption) is the right trade-off.
+// Tradeoff: web data resets on page reload.
+const DB_NAME = Platform.OS === 'web' ? ':memory:' : 'chronobudget.db';
 
 const SCHEMA_VERSION = 3;
 
-export async function initDb(): Promise<void> {
-  const database = await getDb();
-  await database.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
+// Open the connection AND run migrations as one atomic operation, then memoize
+// the resulting promise. Because every DB helper calls getDb(), this guarantees
+// the schema is fully migrated before any query runs — even helpers that fire
+// independently of initDb() (e.g. ExpenseInput reading 'input_mode' on mount).
+// Previously migrations lived in initDb() while getDb() only opened the file, so
+// a query could hit a not-yet-created table. On native the tables persisted on
+// disk and hid the race; the in-memory web DB starts empty and exposed it.
+let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+
+async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
+  const database = await SQLite.openDatabaseAsync(DB_NAME);
+
+  // WAL needs a shared-memory (-shm) sidecar that only makes sense for an on-disk
+  // DB. Skip it for the in-memory web DB.
+  if (Platform.OS !== 'web') {
+    await database.execAsync('PRAGMA journal_mode = WAL;');
+  }
+  await database.execAsync('PRAGMA foreign_keys = ON;');
 
   const [{ user_version }] = await database.getAllAsync<{ user_version: number }>(
     'PRAGMA user_version',
@@ -58,6 +74,21 @@ export async function initDb(): Promise<void> {
   }
 
   await database.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION};`);
+
+  return database;
+}
+
+export function getDb(): Promise<SQLite.SQLiteDatabase> {
+  if (!dbPromise) {
+    dbPromise = openAndMigrate();
+  }
+  return dbPromise;
+}
+
+// Kept for the explicit call in the Dashboard's mount effect. Now simply ensures
+// the DB is opened and migrated (all the real work lives in openAndMigrate).
+export async function initDb(): Promise<void> {
+  await getDb();
 }
 
 // ─── App settings ─────────────────────────────────────────────────────────────
@@ -181,4 +212,42 @@ export async function setLimit(category: Category, amount: number): Promise<void
       amount,
     );
   }
+}
+
+// ─── Monthly totals (for Trends screen) ──────────────────────────────────────
+
+export async function fetchMonthlyTotals(months = 6): Promise<MonthlyTotal[]> {
+  const database = await getDb();
+
+  // Build a list of the last N months as 'YYYY-MM' strings
+  const monthKeys: string[] = [];
+  const now = new Date();
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+
+  const rows = await database.getAllAsync<{ month: string; category: Category; total: number }>(
+    `SELECT
+       strftime('%Y-%m', datetime(timestamp / 1000, 'unixepoch')) AS month,
+       category,
+       SUM(amount) AS total
+     FROM transactions
+     WHERE strftime('%Y-%m', datetime(timestamp / 1000, 'unixepoch')) >= ?
+     GROUP BY month, category
+     ORDER BY month ASC`,
+    monthKeys[0],
+  );
+
+  // Merge into one object per month, filling zeros for missing categories
+  const map = new Map<string, MonthlyTotal>();
+  for (const key of monthKeys) {
+    map.set(key, { month: key, needs: 0, wants: 0, savings: 0 });
+  }
+  for (const row of rows) {
+    const entry = map.get(row.month);
+    if (entry) entry[row.category] = row.total;
+  }
+
+  return Array.from(map.values());
 }

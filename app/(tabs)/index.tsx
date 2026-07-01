@@ -347,11 +347,15 @@ export default function DashboardScreen() {
   const isWide = width >= 768;
 
   useEffect(() => {
-    initDb().then(async () => {
-      setDbReady(true);
-      const done = await getSetting('onboarding_complete');
-      if (!done) setShowOnboarding(true);
-    });
+    initDb()
+      .then(async () => {
+        setDbReady(true);
+        const done = await getSetting('onboarding_complete');
+        if (!done) setShowOnboarding(true);
+      })
+      .catch((err: unknown) => {
+        console.warn('Database initialization failed:', err);
+      });
   }, []);
 
   useEffect(() => {

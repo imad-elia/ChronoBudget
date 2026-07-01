@@ -8,9 +8,14 @@ None. ChronoBudget is fully offline. No HTTP requests, no authentication, no ana
 
 None. No `.env` files are used.
 
-## SQLite schema (schema version 3)
+## SQLite storage backend (platform-split)
 
-Database file: `chronobudget.db` (opened via `expo-sqlite`).
+- **Native:** persistent file `chronobudget.db`, WAL journal mode.
+- **Web:** in-memory database (`:memory:`), default journal mode. Web data resets on reload — it's a dev-preview target only. See [[web-inmemory-db]].
+
+`getDb()` opens the connection **and runs migrations** as one memoized promise (`openAndMigrate`), so every helper waits for a fully-migrated schema. `initDb()` is just `await getDb()`.
+
+## SQLite schema (schema version 3)
 
 ### `transactions`
 
@@ -74,6 +79,7 @@ Migration strategy: incremental `if (user_version < N)` blocks in `initDb()`. v1
 | `fetchTransactions(limit, category?)` | Filtered fetch for History screen |
 | `fetchLimits()` | All rows from budget_limits |
 | `setLimit(category, amount)` | Upsert or delete limit |
+| `fetchMonthlyTotals(months = 6)` | SUM per category grouped by calendar month, for the Trends screen. Returns `MonthlyTotal[]` with zero-filled gaps for the last N months. |
 
 ## Related notes
 

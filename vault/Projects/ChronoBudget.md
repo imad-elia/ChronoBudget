@@ -18,14 +18,15 @@ Offline-first mobile expense tracker built for OLED dark-mode phones. Users log 
 | Gradients | expo-linear-gradient |
 | Safe area | react-native-safe-area-context |
 
-## Current status (as of 2026-06-28)
+## Current status (as of 2026-07-01)
 
 - Dashboard screen: fully working
-- History screen: fully working
+- History screen: fully working (+ CSV export on native)
+- Trends screen: implemented (custom bar chart, last 6 months) — see [[Components]]
 - Onboarding overlay: implemented (4 steps)
 - Dual input mode (Fast / Detailed): implemented with subcategory chips
 - Budget limits: implemented with progress bars in BentoCards
-- Web build: functional; minor `shadow*` deprecation warning (cosmetic)
+- Web build: functional. Web uses in-memory SQLite (dev preview); native uses persistent WAL. See [[web-inmemory-db]].
 
 ## Known issues
 
@@ -33,7 +34,7 @@ See [[open-issues]].
 
 ## Next steps
 
-- Nothing formally scheduled yet. Possible future work: export transactions (CSV), charts/trends view, recurring transaction support.
+- Possible future work: recurring transactions, account-aware budgeting, CSV *import*.
 
 ## Related notes
 

@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
@@ -34,7 +34,12 @@ export function BentoCard({ title, amount, color, glowColor, gradientColors, ico
   const pct = Math.round(ratio * 100);
 
   return (
-    <View style={[styles.wrapper, { shadowColor: glowColor }]}>
+    <View style={[
+      styles.wrapper,
+      Platform.OS === 'web'
+        ? { boxShadow: `0 0 16px ${glowColor}59` } as ViewStyle
+        : { shadowColor: glowColor },
+    ]}>
       <LinearGradient
         colors={gradientColors}
         start={{ x: 0, y: 0 }}
@@ -72,10 +77,12 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     borderRadius: theme.radius.lg,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
     elevation: 10,
+    ...(Platform.OS !== 'web' && {
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.35,
+      shadowRadius: 16,
+    }),
   },
   gradient: {
     flex: 1,

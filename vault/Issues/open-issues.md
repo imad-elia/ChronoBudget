@@ -2,15 +2,12 @@
 
 ## Active
 
-### Web: `shadow*` style props deprecation warning
-**Severity:** Cosmetic (web only)  
-**Source:** `components/BentoCard.tsx` — uses `shadowOffset`, `shadowOpacity`, `shadowRadius` in `StyleSheet.create`. These are React Native shadow props; React Native Web prefers `boxShadow`.  
-**Fix:** Add `Platform.OS === 'web'` conditional to BentoCard wrapper style, using `boxShadow: '0 0 16px <color>59'` on web and the existing RN shadow props otherwise.
+None.
 
-### History screen: subcategory not shown in row label
-**Severity:** Minor UX gap  
-**Source:** `app/(tabs)/history.tsx` `HistoryRow` — the row label renders `item.note || cfg.label`. It does not fall back to `item.subcategory` the way `TransactionRow` in the Dashboard does (`item.subcategory || item.note || config.title`).  
-**Fix:** Change `HistoryRow` note display to `item.subcategory || item.note || cfg.label`.
+## Known non-issues (won't fix)
+
+- **Web: `props.pointerEvents is deprecated. Use style.pointerEvents`** — emitted by a dependency (React Navigation / Expo internals), not project code. Cosmetic; resolves when those libs update.
+- **Web: onboarding re-shows on every reload** — expected. Web uses an in-memory DB ([[web-inmemory-db]]), so the `onboarding_complete` flag resets each reload. Native persists correctly.
 
 ## Resolved (for reference)
 
@@ -20,6 +17,11 @@
 - **"Total Spent" hidden behind status bar** — fixed by passing `topInset` prop to `DashboardHeader`.
 - **Reanimated transform overwritten by layout animation** — fixed by splitting into two nested `Animated.View` elements (outer for entering/exiting/layout, inner for transform style).
 - **"no such column: subcategory"** — stale browser DB at schema v2. Fixed by clearing browser site data so the v3 migration runs.
+- **History subcategory not shown** — `HistoryRow` was reading `item.note || cfg.label`, missing `item.subcategory`. Fixed 2026-07-01.
+- **Web `shadow*` deprecation warning** — `BentoCard` used RN shadow props on web. Fixed with `Platform.OS === 'web'` conditional using `boxShadow`. Fixed 2026-07-01.
+- **Web `createSyncAccessHandle` / `sqlite3_open_v2` / `no such table`** — expo-sqlite OPFS locking + a migration race. Fixed by switching web to in-memory SQLite and moving migrations into `getDb()`. See [[web-inmemory-db]]. Fixed 2026-07-01.
+- **Android CSV export crash — `writeAsStringAsync ... is deprecated`** — the default `expo-file-system` entry deprecated (and now throws on) the classic API in SDK 54+. Fixed by importing from `expo-file-system/legacy`. Fixed 2026-07-01.
+- **CSV export button missing on web** — was intentionally hidden because `expo-sharing` has no web backend. Replaced with a platform branch: web exports via a Blob + anchor download; native uses `expo-file-system`/`expo-sharing`. Button now shown on all platforms. Fixed 2026-07-01.
 
 ## Related notes
 

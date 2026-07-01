@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -17,6 +18,16 @@ import Animated, {
 } from 'react-native-reanimated';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// expo-file-system and expo-sharing are native-only — lazy import only on native.
+// Use the legacy FileSystem API: the default entry's writeAsStringAsync/cacheDirectory
+// are deprecated in SDK 54+ and now throw. The legacy entry keeps the classic API.
+let FileSystem: typeof import('expo-file-system/legacy') | null = null;
+let Sharing: typeof import('expo-sharing') | null = null;
+if (Platform.OS !== 'web') {
+  FileSystem = require('expo-file-system/legacy');
+  Sharing = require('expo-sharing');
+}
 
 import { fetchTransactions, deleteTransaction } from '../../db/database';
 import { useBudgetStore, type Transaction, type Category } from '../../store/useBudgetStore';
@@ -91,7 +102,7 @@ function HistoryRow({ item, onDelete }: { item: Transaction; onDelete: (id: numb
           <Icon name={cfg.icon} size={18} color={cfg.color} />
         </View>
         <View style={rowStyles.meta}>
-          <Text style={rowStyles.note} numberOfLines={1}>{item.note || cfg.label}</Text>
+          <Text style={rowStyles.note} numberOfLines={1}>{item.subcategory || item.note || cfg.label}</Text>
           <View style={rowStyles.tagRow}>
             <View style={[rowStyles.tag, { backgroundColor: `${cfg.color}18`, borderColor: `${cfg.color}30` }]}>
               <Text style={[rowStyles.tagText, { color: cfg.color }]}>{cfg.label}</Text>
@@ -142,6 +153,7 @@ export default function HistoryScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filter, setFilter] = useState<FilterOption>('all');
   const [dbReady, setDbReady] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const refreshCounter = useBudgetStore((s) => s.refreshCounter);
   const insets = useSafeAreaInsets();
@@ -161,6 +173,43 @@ export default function HistoryScreen() {
     useBudgetStore.getState().triggerRefresh();
   }, []);
 
+  const handleExport = useCallback(async () => {
+    if (exporting || transactions.length === 0) return;
+    setExporting(true);
+    try {
+      const header = 'Date,Time,Category,Subcategory,Note,Amount\n';
+      const rows = transactions.map((t) => {
+        const d = new Date(t.timestamp);
+        const date = d.toLocaleDateString('en-CA'); // YYYY-MM-DD
+        const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const escape = (s: string) => `"${s.replace(/"/g, '""')}"`;
+        return [date, time, t.category, escape(t.subcategory), escape(t.note), t.amount.toFixed(2)].join(',');
+      });
+      const csv = header + rows.join('\n');
+
+      if (Platform.OS === 'web') {
+        // Browser download via a Blob + temporary anchor — no native module needed.
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'chronobudget-export.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        return;
+      }
+
+      if (!FileSystem || !Sharing) return;
+      const uri = `${FileSystem.cacheDirectory}chronobudget-export.csv`;
+      await FileSystem.writeAsStringAsync(uri, csv, { encoding: FileSystem.EncodingType.UTF8 });
+      await Sharing.shareAsync(uri, { mimeType: 'text/csv', dialogTitle: 'Export transactions', UTI: 'public.comma-separated-values-text' });
+    } finally {
+      setExporting(false);
+    }
+  }, [transactions, exporting]);
+
   const sections = groupByDate(transactions);
   const total = transactions.reduce((s, t) => s + t.amount, 0);
   const totalFormatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(total);
@@ -172,7 +221,23 @@ export default function HistoryScreen() {
         {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
           <Text style={styles.screenTitle}>HISTORY</Text>
-          <Text style={[styles.totalBadge, { color: activeFilter.color }]}>{totalFormatted}</Text>
+          <View style={styles.headerRight}>
+            <Text style={[styles.totalBadge, { color: activeFilter.color }]}>{totalFormatted}</Text>
+            {transactions.length > 0 && (
+              <TouchableOpacity
+                onPress={handleExport}
+                disabled={exporting}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={styles.exportBtn}
+              >
+                <Icon
+                  name={exporting ? 'loading' : 'export-variant'}
+                  size={20}
+                  color={theme.colors.textMuted}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {/* Filter chips */}
@@ -240,7 +305,9 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.md,
   },
   screenTitle: { ...theme.typography.headingLarge, color: theme.colors.textPrimary, letterSpacing: 2 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
   totalBadge: { ...theme.typography.headingMedium },
+  exportBtn: { padding: 2 },
   filters: {
     flexDirection: 'row',
     gap: theme.spacing.sm,
