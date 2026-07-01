@@ -25,6 +25,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BentoCard } from '../../components/BentoCard';
 import { ExpenseInput } from '../../components/ExpenseInput';
 import { OnboardingOverlay } from '../../components/OnboardingOverlay';
+import { SettingsModal } from '../../components/SettingsModal';
 import {
   initDb,
   fetchCategoryTotals,
@@ -36,6 +37,8 @@ import {
 } from '../../db/database';
 import { useBudgetStore, type Transaction, type CategoryTotals, type Category } from '../../store/useBudgetStore';
 import { theme } from '../../theme';
+import { formatCurrency } from '../../lib/format';
+import { t } from '../../lib/i18n';
 
 const BENTO_CONFIG = [
   {
@@ -71,7 +74,7 @@ function TransactionRow({ item, onDelete }: { item: Transaction; onDelete: (id: 
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(item.amount);
+  const formatted = formatCurrency(item.amount);
   const date = new Date(item.timestamp).toLocaleDateString('en-US', {
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
   });
@@ -268,22 +271,29 @@ const modalStyles = StyleSheet.create({
 
 // ─── Dashboard header ─────────────────────────────────────────────────────────
 
-function DashboardHeader({ totals, onOpenLimits, topInset }: { totals: CategoryTotals; onOpenLimits: () => void; topInset: number }) {
+function DashboardHeader({ totals, onOpenLimits, onOpenSettings, topInset }: { totals: CategoryTotals; onOpenLimits: () => void; onOpenSettings: () => void; topInset: number }) {
   const limits = useBudgetStore((s) => s.limits);
+  // Subscribe to currency so the header re-renders when the user changes country.
+  useBudgetStore((s) => s.currency);
   const total = totals.needs + totals.wants + totals.savings;
-  const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(total);
+  const formatted = formatCurrency(total);
 
   return (
     <View style={[headerStyles.container, { paddingTop: topInset + theme.spacing.lg }]}>
       <View style={headerStyles.titleRow}>
         <View style={headerStyles.titleSpacer} />
         <View style={headerStyles.titleCenter}>
-          <Text style={headerStyles.label}>TOTAL SPENT</Text>
+          <Text style={headerStyles.label}>{t('dashboard.totalSpent').toUpperCase()}</Text>
           <Text style={headerStyles.balance} numberOfLines={1} adjustsFontSizeToFit>{formatted}</Text>
         </View>
-        <TouchableOpacity style={headerStyles.settingsBtn} onPress={onOpenLimits} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Icon name="tune-variant" size={20} color={theme.colors.textMuted} />
-        </TouchableOpacity>
+        <View style={headerStyles.headerActions}>
+          <TouchableOpacity style={headerStyles.iconBtn} onPress={onOpenSettings} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Icon name="cog-outline" size={20} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity style={headerStyles.iconBtn} onPress={onOpenLimits} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Icon name="tune-variant" size={20} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+        </View>
       </View>
       <View style={headerStyles.grid}>
         {BENTO_CONFIG.map((c) => (
@@ -307,9 +317,10 @@ function DashboardHeader({ totals, onOpenLimits, topInset }: { totals: CategoryT
 const headerStyles = StyleSheet.create({
   container: { paddingBottom: theme.spacing.md },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: theme.spacing.lg },
-  titleSpacer: { width: 36 },
+  titleSpacer: { width: 64 },
   titleCenter: { flex: 1, alignItems: 'center' },
-  settingsBtn: { width: 36, alignItems: 'flex-end', paddingTop: 4 },
+  headerActions: { width: 64, flexDirection: 'row', justifyContent: 'flex-end', gap: theme.spacing.sm, paddingTop: 4 },
+  iconBtn: { alignItems: 'flex-end' },
   label: { ...theme.typography.labelLarge, color: theme.colors.textMuted, textAlign: 'center', marginBottom: theme.spacing.xs },
   balance: { ...theme.typography.displayLarge, color: theme.colors.textPrimary, textAlign: 'center' },
   grid: { flexDirection: 'row', gap: 10, marginBottom: theme.spacing.lg },
@@ -339,6 +350,7 @@ export default function DashboardScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [dbReady, setDbReady] = useState(false);
   const [limitsOpen, setLimitsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   const refreshCounter = useBudgetStore((s) => s.refreshCounter);
@@ -349,6 +361,12 @@ export default function DashboardScreen() {
   useEffect(() => {
     initDb()
       .then(async () => {
+        // Load locale/currency and learned keywords before revealing the UI so
+        // amounts render in the right currency and the smart input can classify.
+        await Promise.all([
+          useBudgetStore.getState().loadLocale(),
+          useBudgetStore.getState().loadLearnedKeywords(),
+        ]);
         setDbReady(true);
         const done = await getSetting('onboarding_complete');
         if (!done) setShowOnboarding(true);
@@ -387,7 +405,7 @@ export default function DashboardScreen() {
           keyExtractor={(item) => String(item.id)}
           renderItem={renderItem}
           ListHeaderComponent={
-            <DashboardHeader totals={totals} onOpenLimits={() => setLimitsOpen(true)} topInset={insets.top} />
+            <DashboardHeader totals={totals} onOpenLimits={() => setLimitsOpen(true)} onOpenSettings={() => setSettingsOpen(true)} topInset={insets.top} />
           }
           ListEmptyComponent={<EmptyState />}
           contentContainerStyle={[screenStyles.listContent, { paddingBottom: insets.bottom + 16 }]}
@@ -405,6 +423,11 @@ export default function DashboardScreen() {
         visible={limitsOpen}
         onClose={() => setLimitsOpen(false)}
         onSave={() => useBudgetStore.getState().triggerRefresh()}
+      />
+
+      <SettingsModal
+        visible={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
       />
 
       <OnboardingOverlay

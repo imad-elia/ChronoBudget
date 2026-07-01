@@ -32,6 +32,7 @@ if (Platform.OS !== 'web') {
 import { fetchTransactions, deleteTransaction } from '../../db/database';
 import { useBudgetStore, type Transaction, type Category } from '../../store/useBudgetStore';
 import { theme } from '../../theme';
+import { formatCurrency } from '../../lib/format';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -82,7 +83,7 @@ function HistoryRow({ item, onDelete }: { item: Transaction; onDelete: (id: numb
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(item.amount);
+  const formatted = formatCurrency(item.amount);
   const time = new Date(item.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
   return (
@@ -212,7 +213,7 @@ export default function HistoryScreen() {
 
   const sections = groupByDate(transactions);
   const total = transactions.reduce((s, t) => s + t.amount, 0);
-  const totalFormatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(total);
+  const totalFormatted = formatCurrency(total);
   const activeFilter = FILTERS.find((f) => f.id === filter)!;
 
   return (

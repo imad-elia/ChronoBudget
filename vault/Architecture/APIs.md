@@ -15,7 +15,7 @@ None. No `.env` files are used.
 
 `getDb()` opens the connection **and runs migrations** as one memoized promise (`openAndMigrate`), so every helper waits for a fully-migrated schema. `initDb()` is just `await getDb()`.
 
-## SQLite schema (schema version 3)
+## SQLite schema (schema version 4)
 
 ### `transactions`
 
@@ -54,6 +54,22 @@ CREATE TABLE app_settings (
 Known keys:
 - `onboarding_complete` — `'1'` when the user has dismissed the onboarding overlay
 - `input_mode` — `'fast'` or `'detailed'`
+- `country` — ISO country code selected in onboarding/Settings; drives locale + currency (see [[localization]])
+
+### `keyword_learn` (schema v4)
+
+```sql
+CREATE TABLE keyword_learn (
+  keyword     TEXT PRIMARY KEY,
+  category    TEXT NOT NULL CHECK(category IN ('needs', 'wants', 'savings')),
+  subcategory TEXT NOT NULL DEFAULT '',
+  count       INTEGER NOT NULL DEFAULT 1,
+  updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
+);
+```
+
+Stores learned keyword → category/subcategory mappings for the smart input
+classifier (see [[smart-input-classifier]]).
 
 ## Migration history
 
@@ -62,6 +78,7 @@ Known keys:
 | v1 | Drop + recreate `transactions` table with category column and indexes |
 | v2 | Create `budget_limits` table |
 | v3 | `ALTER TABLE transactions ADD COLUMN subcategory`; create `app_settings` table |
+| v4 | Create `keyword_learn` table (smart-input learning) |
 
 Migration strategy: incremental `if (user_version < N)` blocks in `initDb()`. v1 was destructive (dev-safe at the time); v2 and v3 are additive.
 
@@ -80,6 +97,17 @@ Migration strategy: incremental `if (user_version < N)` blocks in `initDb()`. v1
 | `fetchLimits()` | All rows from budget_limits |
 | `setLimit(category, amount)` | Upsert or delete limit |
 | `fetchMonthlyTotals(months = 6)` | SUM per category grouped by calendar month, for the Trends screen. Returns `MonthlyTotal[]` with zero-filled gaps for the last N months. |
+| `fetchLearnedKeywords()` | Load all `keyword_learn` rows into a `Record<keyword, {category, subcategory}>` for the smart-input cache. |
+| `learnKeyword(keyword, category, subcategory)` | Upsert a learned keyword mapping (increments `count`). See [[smart-input-classifier]]. |
+
+## Formatting & i18n helpers (not DB)
+
+- `lib/format.ts` — `formatCurrency` / `formatCompactCurrency` / `formatNumber` /
+  `formatDate`, driven by the store's locale/currency (Intl + manual fallback).
+- `lib/i18n.ts` — `t(key, vars)` + `setActiveLocale`; strings in `constants/i18n/en.ts`.
+- `lib/detectCategory.ts` — `parseEntry` / `detectCategory` / `learnKey` (pure).
+- `constants/countries.ts`, `constants/keywordMap.ts` — static data.
+- See [[localization]] and [[smart-input-classifier]].
 
 ## Related notes
 

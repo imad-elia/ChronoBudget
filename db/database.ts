@@ -11,7 +11,7 @@ import type { Category, Transaction, CategoryTotals, CategoryLimits, MonthlyTota
 // Tradeoff: web data resets on page reload.
 const DB_NAME = Platform.OS === 'web' ? ':memory:' : 'chronobudget.db';
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 // Open the connection AND run migrations as one atomic operation, then memoize
 // the resulting promise. Because every DB helper calls getDb(), this guarantees
@@ -73,6 +73,18 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
     `);
   }
 
+  if (user_version < 4) {
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS keyword_learn (
+        keyword     TEXT PRIMARY KEY,
+        category    TEXT NOT NULL CHECK(category IN ('needs', 'wants', 'savings')),
+        subcategory TEXT NOT NULL DEFAULT '',
+        count       INTEGER NOT NULL DEFAULT 1,
+        updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+    `);
+  }
+
   await database.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION};`);
 
   return database;
@@ -109,6 +121,46 @@ export async function setSetting(key: string, value: string): Promise<void> {
      ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
     key,
     value,
+  );
+}
+
+// ─── Learned keywords (smart input) ─────────────────────────────────────────────
+
+export async function fetchLearnedKeywords(): Promise<
+  Record<string, { category: Category; subcategory: string }>
+> {
+  const database = await getDb();
+  const rows = await database.getAllAsync<{
+    keyword: string;
+    category: Category;
+    subcategory: string;
+  }>('SELECT keyword, category, subcategory FROM keyword_learn');
+  const map: Record<string, { category: Category; subcategory: string }> = {};
+  for (const r of rows) {
+    map[r.keyword] = { category: r.category, subcategory: r.subcategory };
+  }
+  return map;
+}
+
+export async function learnKeyword(
+  keyword: string,
+  category: Category,
+  subcategory: string,
+): Promise<void> {
+  const key = keyword.trim().toLowerCase();
+  if (!key) return;
+  const database = await getDb();
+  await database.runAsync(
+    `INSERT INTO keyword_learn (keyword, category, subcategory, count, updated_at)
+     VALUES (?, ?, ?, 1, unixepoch())
+     ON CONFLICT(keyword) DO UPDATE SET
+       category    = excluded.category,
+       subcategory = excluded.subcategory,
+       count       = count + 1,
+       updated_at  = excluded.updated_at`,
+    key,
+    category,
+    subcategory,
   );
 }
 

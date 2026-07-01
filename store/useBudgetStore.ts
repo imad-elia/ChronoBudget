@@ -1,6 +1,15 @@
 import { create } from 'zustand';
+import { COUNTRIES, DEFAULT_COUNTRY, findCountry } from '../constants/countries';
+import { setActiveLocale } from '../lib/i18n';
+import {
+  fetchLearnedKeywords,
+  getSetting,
+  setSetting,
+} from '../db/database';
 
 type Category = 'needs' | 'wants' | 'savings';
+
+type LearnedKeywords = Record<string, { category: Category; subcategory: string }>;
 
 interface Transaction {
   id: number;
@@ -30,6 +39,19 @@ interface BudgetStore {
 
   limits: CategoryLimits;
   setLimits: (limits: CategoryLimits) => void;
+
+  // Smart-input learned keywords (cached from SQLite for synchronous detection)
+  learnedKeywords: LearnedKeywords;
+  loadLearnedKeywords: () => Promise<void>;
+
+  // Localization (currency + formatting)
+  country: string;
+  locale: string;
+  currency: string;
+  symbol: string;
+  currencyDecimals: number;
+  loadLocale: () => Promise<void>;
+  setCountry: (code: string) => Promise<void>;
 }
 
 export const useBudgetStore = create<BudgetStore>((set) => ({
@@ -43,7 +65,48 @@ export const useBudgetStore = create<BudgetStore>((set) => ({
 
   limits: { needs: 0, wants: 0, savings: 0 },
   setLimits: (limits) => set({ limits }),
+
+  learnedKeywords: {},
+  loadLearnedKeywords: async () => {
+    const map = await fetchLearnedKeywords();
+    set({ learnedKeywords: map });
+  },
+
+  country: DEFAULT_COUNTRY.code,
+  locale: DEFAULT_COUNTRY.locale,
+  currency: DEFAULT_COUNTRY.currency,
+  symbol: DEFAULT_COUNTRY.symbol,
+  currencyDecimals: DEFAULT_COUNTRY.decimals,
+  loadLocale: async () => {
+    const code = await getSetting('country');
+    const country = findCountry(code) ?? DEFAULT_COUNTRY;
+    setActiveLocale(country.locale);
+    set({
+      country: country.code,
+      locale: country.locale,
+      currency: country.currency,
+      symbol: country.symbol,
+      currencyDecimals: country.decimals,
+    });
+  },
+  setCountry: async (code) => {
+    const country = findCountry(code) ?? DEFAULT_COUNTRY;
+    await setSetting('country', country.code);
+    setActiveLocale(country.locale);
+    // Bump refreshCounter so screens that format currency via getState() (e.g.
+    // transaction rows) re-render with the new locale/symbol.
+    set((s) => ({
+      country: country.code,
+      locale: country.locale,
+      currency: country.currency,
+      symbol: country.symbol,
+      currencyDecimals: country.decimals,
+      refreshCounter: s.refreshCounter + 1,
+    }));
+  },
 }));
+
+export { COUNTRIES };
 
 interface MonthlyTotal {
   month: string;

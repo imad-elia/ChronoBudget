@@ -12,6 +12,7 @@ import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { fetchMonthlyTotals } from '../../db/database';
 import { useBudgetStore, type MonthlyTotal } from '../../store/useBudgetStore';
 import { theme } from '../../theme';
+import { formatCompactCurrency } from '../../lib/format';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -25,11 +26,6 @@ function shortMonth(yearMonth: string): string {
   const [year, month] = yearMonth.split('-');
   const d = new Date(Number(year), Number(month) - 1, 1);
   return d.toLocaleString('en-US', { month: 'short' });
-}
-
-function formatCurrency(n: number): string {
-  if (n >= 1000) return `$${(n / 1000).toFixed(1)}k`;
-  return `$${Math.round(n)}`;
 }
 
 // ─── Bar chart ────────────────────────────────────────────────────────────────
@@ -52,7 +48,7 @@ function MonthlyChart({ data }: { data: MonthlyTotal[] }) {
           key={ratio}
           style={[chartStyles.gridLine, { bottom: ratio * BAR_HEIGHT + chartStyles.baseline.height }]}
         >
-          <Text style={chartStyles.gridLabel}>{formatCurrency(maxVal * ratio)}</Text>
+          <Text style={chartStyles.gridLabel}>{formatCompactCurrency(maxVal * ratio)}</Text>
         </View>
       ))}
 
@@ -177,9 +173,7 @@ function SummaryChips({ data }: { data: MonthlyTotal[] }) {
     <View style={summaryStyles.row}>
       {CATEGORIES.map((cat) => {
         const val = totals[cat.id];
-        const formatted = new Intl.NumberFormat('en-US', {
-          style: 'currency', currency: 'USD', maximumFractionDigits: 0,
-        }).format(val);
+        const formatted = formatCompactCurrency(val);
         return (
           <View key={cat.id} style={[summaryStyles.chip, { borderColor: `${cat.color}30`, backgroundColor: `${cat.color}0D` }]}>
             <Text style={[summaryStyles.chipLabel, { color: cat.color }]}>{cat.label}</Text>

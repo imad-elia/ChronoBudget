@@ -1,15 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   Modal,
+  ScrollView,
   StyleSheet,
-  useWindowDimensions,
 } from 'react-native';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import * as Localization from 'expo-localization';
 import { setSetting } from '../db/database';
+import { useBudgetStore, COUNTRIES } from '../store/useBudgetStore';
+import { findCountry } from '../constants/countries';
 import { theme } from '../theme';
+import { t } from '../lib/i18n';
 
 interface Props {
   visible: boolean;
@@ -52,11 +56,26 @@ const STEPS: Step[] = [
 ];
 
 export function OnboardingOverlay({ visible, onDone }: Props) {
+  const [phase, setPhase] = useState<'country' | 'tour'>('country');
   const [step, setStep] = useState(0);
-  const { height } = useWindowDimensions();
+  const storeCountry = useBudgetStore((s) => s.country);
+  const setCountry = useBudgetStore((s) => s.setCountry);
+  const [picked, setPicked] = useState(storeCountry);
   const current = STEPS[step];
   const isLast = step === STEPS.length - 1;
   const isFirst = step === 0;
+
+  // Pre-fill from the device region for the user to approve.
+  useEffect(() => {
+    const region = Localization.getLocales?.()[0]?.regionCode;
+    const match = findCountry(region);
+    if (match) setPicked(match.code);
+  }, []);
+
+  async function handleContinueCountry() {
+    await setCountry(picked);
+    setPhase('tour');
+  }
 
   async function handleDone() {
     await setSetting('onboarding_complete', '1');
@@ -72,6 +91,49 @@ export function OnboardingOverlay({ visible, onDone }: Props) {
   }
 
   const useAnchor = current.anchorFromBottom !== undefined;
+
+  if (phase === 'country') {
+    return (
+      <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.overlay}>
+          <View style={StyleSheet.absoluteFillObject as any} />
+          <View style={[styles.card, styles.cardCenter]}>
+            <View style={styles.iconWrap}>
+              <Icon name="earth" size={32} color={theme.colors.neonGreen} />
+            </View>
+            <Text style={styles.title}>{t('onboarding.countryTitle')}</Text>
+            <Text style={styles.body}>{t('onboarding.countrySubtitle')}</Text>
+
+            <ScrollView style={countryStyles.list} showsVerticalScrollIndicator={false}>
+              {COUNTRIES.map((c) => {
+                const active = c.code === picked;
+                return (
+                  <TouchableOpacity
+                    key={c.code}
+                    style={[countryStyles.row, active && countryStyles.rowActive]}
+                    onPress={() => setPicked(c.code)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[countryStyles.name, active && countryStyles.nameActive]}>{c.name}</Text>
+                    <Text style={countryStyles.currency}>{c.symbol} {c.currency}</Text>
+                    {active && <Icon name="check" size={16} color={theme.colors.neonGreen} style={countryStyles.check} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.nextBtn, { backgroundColor: theme.colors.neonGreen, width: '100%' }]}
+              onPress={handleContinueCountry}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.nextLabel}>{t('onboarding.continue')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
 
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
@@ -245,4 +307,25 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     textDecorationLine: 'underline',
   },
+});
+
+const countryStyles = StyleSheet.create({
+  list: { width: '100%', maxHeight: 260, marginVertical: theme.spacing.xs },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: theme.spacing.md,
+    height: 46,
+    marginBottom: theme.spacing.sm,
+    gap: theme.spacing.sm,
+  },
+  rowActive: { borderColor: theme.colors.neonGreen, backgroundColor: `${theme.colors.neonGreen}14` },
+  name: { ...theme.typography.bodyLarge, color: theme.colors.textSecondary, flex: 1 },
+  nameActive: { color: theme.colors.textPrimary },
+  currency: { ...theme.typography.bodyMedium, color: theme.colors.textMuted },
+  check: { marginLeft: theme.spacing.xs },
 });

@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { theme } from '../theme';
+import { formatCurrency } from '../lib/format';
 
 interface BentoCardProps {
   title: string;
@@ -22,11 +23,7 @@ function progressColor(ratio: number, color: string): string {
 }
 
 export function BentoCard({ title, amount, color, glowColor, gradientColors, icon, limit }: BentoCardProps) {
-  const formatted = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 2,
-  }).format(amount);
+  const formatted = formatCurrency(amount);
 
   const hasLimit = !!limit && limit > 0;
   const ratio = hasLimit ? Math.min(amount / limit, 1) : 0;
