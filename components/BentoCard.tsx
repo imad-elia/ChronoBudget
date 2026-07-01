@@ -26,9 +26,11 @@ export function BentoCard({ title, amount, color, glowColor, gradientColors, ico
   const formatted = formatCurrency(amount);
 
   const hasLimit = !!limit && limit > 0;
-  const ratio = hasLimit ? Math.min(amount / limit, 1) : 0;
-  const barColor = hasLimit ? progressColor(ratio, color) : color;
-  const pct = Math.round(ratio * 100);
+  const rawRatio = hasLimit ? amount / limit : 0;
+  const fillWidth = Math.min(rawRatio, 1);
+  const barColor = hasLimit ? progressColor(rawRatio, color) : color;
+  const pct = Math.round(rawRatio * 100);
+  const over = hasLimit && rawRatio > 1;
 
   return (
     <View style={[
@@ -57,8 +59,14 @@ export function BentoCard({ title, amount, color, glowColor, gradientColors, ico
         {hasLimit ? (
           <View style={styles.progressSection}>
             <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${pct}%` as `${number}%`, backgroundColor: barColor }]} />
+              <View style={[styles.progressFill, { width: `${Math.round(fillWidth * 100)}%` as `${number}%`, backgroundColor: barColor }]} />
             </View>
+            {over && (
+              <View style={styles.overBadge}>
+                <Icon name="alert-circle" size={11} color="#FF2D78" />
+                <Text style={styles.overBadgeText}>OVER</Text>
+              </View>
+            )}
             <Text style={[styles.progressLabel, { color: barColor }]}>{pct}%</Text>
           </View>
         ) : (
@@ -140,5 +148,19 @@ const styles = StyleSheet.create({
     ...theme.typography.labelSmall,
     minWidth: 30,
     textAlign: 'right',
+  },
+  overBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: theme.radius.full,
+    backgroundColor: '#FF2D781A',
+  },
+  overBadgeText: {
+    ...theme.typography.labelSmall,
+    color: '#FF2D78',
+    fontWeight: '700',
   },
 });

@@ -22,6 +22,7 @@ None.
 - **Web `createSyncAccessHandle` / `sqlite3_open_v2` / `no such table`** — expo-sqlite OPFS locking + a migration race. Fixed by switching web to in-memory SQLite and moving migrations into `getDb()`. See [[web-inmemory-db]]. Fixed 2026-07-01.
 - **Android CSV export crash — `writeAsStringAsync ... is deprecated`** — the default `expo-file-system` entry deprecated (and now throws on) the classic API in SDK 54+. Fixed by importing from `expo-file-system/legacy`. Fixed 2026-07-01.
 - **CSV export button missing on web** — was intentionally hidden because `expo-sharing` has no web backend. Replaced with a platform branch: web exports via a Blob + anchor download; native uses `expo-file-system`/`expo-sharing`. Button now shown on all platforms. Fixed 2026-07-01.
+- **Budget limit stuck at 100% with no overspend signal** — `BentoCard` clamped the ratio with `Math.min(amount / limit, 1)`, so spending past a category limit still displayed 100% and never told the user. Fixed by computing the label from the real (unclamped) ratio while keeping the bar fill capped at 100% width, forcing the magenta `#FF2D78` bar/label when over, and adding a small `alert-circle` + `OVER` pill. Verified on web (Needs $68 / $50 → **136%** + OVER badge). Fixed 2026-07-01.
 
 ## Related notes
 

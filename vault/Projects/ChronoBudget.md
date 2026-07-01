@@ -27,7 +27,8 @@ Offline-first mobile expense tracker built for OLED dark-mode phones. Users log 
 - Dual input mode (Fast / Detailed): implemented with subcategory chips
 - Smart input: Fast free-text ("15 coffee" → Wants · Dining) + Detailed auto-suggest, with a local keyword classifier that learns from corrections. See [[smart-input-classifier]].
 - Localization: country picker (onboarding + Settings) sets currency + number formatting app-wide; English-only display with i18n-ready string files. See [[localization]].
-- Budget limits: implemented with progress bars in BentoCards
+- Budget limits: implemented with progress bars in BentoCards; over-limit state shows the true % (uncapped) + a magenta OVER badge.
+- Recurring transactions: weekly/monthly/yearly rules (Recurring manager modal, autorenew header icon) that auto-post real transactions on app open, with month-end-clamped date math and missed-period catch-up. See [[recurring-transactions]].
 - Web build: functional. Web uses in-memory SQLite (dev preview); native uses persistent WAL. See [[web-inmemory-db]].
 
 ## Known issues
@@ -37,7 +38,8 @@ See [[open-issues]].
 ## Next steps
 
 - Full UI translation: string structure is ready ([[localization]]); add locale files (e.g. `fr.ts`) when desired.
-- Possible future work: recurring transactions, account-aware budgeting, CSV *import*.
+- Recurring: optional custom start date (rules currently anchor to creation day). See [[recurring-transactions]].
+- Possible future work: account-aware budgeting, CSV *import*.
 
 ## Related notes
 

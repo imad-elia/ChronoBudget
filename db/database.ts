@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
-import type { Category, Transaction, CategoryTotals, CategoryLimits, MonthlyTotal } from '../store/useBudgetStore';
+import type { Category, Transaction, CategoryTotals, CategoryLimits, MonthlyTotal, RecurringRule, Frequency } from '../store/useBudgetStore';
+import { advance } from '../lib/recurrence';
 
 // Native uses a persistent on-disk SQLite file. Web uses an in-memory database:
 // expo-sqlite's web backend persists via the Origin Private File System (OPFS),
@@ -11,7 +12,7 @@ import type { Category, Transaction, CategoryTotals, CategoryLimits, MonthlyTota
 // Tradeoff: web data resets on page reload.
 const DB_NAME = Platform.OS === 'web' ? ':memory:' : 'chronobudget.db';
 
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 // Open the connection AND run migrations as one atomic operation, then memoize
 // the resulting promise. Because every DB helper calls getDb(), this guarantees
@@ -81,6 +82,22 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
         subcategory TEXT NOT NULL DEFAULT '',
         count       INTEGER NOT NULL DEFAULT 1,
         updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+    `);
+  }
+
+  if (user_version < 5) {
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS recurring (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        amount      REAL    NOT NULL CHECK(amount > 0),
+        category    TEXT    NOT NULL CHECK(category IN ('needs', 'wants', 'savings')),
+        subcategory TEXT    NOT NULL DEFAULT '',
+        note        TEXT    NOT NULL DEFAULT '',
+        frequency   TEXT    NOT NULL CHECK(frequency IN ('weekly', 'monthly', 'yearly')),
+        next_run    INTEGER NOT NULL,
+        active      INTEGER NOT NULL DEFAULT 1,
+        created_at  INTEGER NOT NULL DEFAULT (unixepoch())
       );
     `);
   }
@@ -264,6 +281,108 @@ export async function setLimit(category: Category, amount: number): Promise<void
       amount,
     );
   }
+}
+
+// ─── Recurring transactions ──────────────────────────────────────────────────
+
+export async function fetchRecurring(): Promise<RecurringRule[]> {
+  const database = await getDb();
+  return database.getAllAsync<RecurringRule>(
+    `SELECT id, amount, category, subcategory, note, frequency, next_run AS nextRun, active
+     FROM recurring
+     ORDER BY next_run ASC`,
+  );
+}
+
+export async function insertRecurring(rule: {
+  amount: number;
+  category: Category;
+  subcategory: string;
+  note: string;
+  frequency: Frequency;
+}): Promise<void> {
+  const database = await getDb();
+  // next_run = now so the first occurrence posts on the next processRecurring().
+  await database.runAsync(
+    `INSERT INTO recurring (amount, category, subcategory, note, frequency, next_run, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, unixepoch())`,
+    rule.amount,
+    rule.category,
+    rule.subcategory.trim(),
+    rule.note.trim(),
+    rule.frequency,
+    Date.now(),
+  );
+}
+
+export async function updateRecurring(
+  id: number,
+  fields: {
+    amount: number;
+    category: Category;
+    subcategory: string;
+    note: string;
+    frequency: Frequency;
+  },
+): Promise<void> {
+  const database = await getDb();
+  await database.runAsync(
+    `UPDATE recurring
+     SET amount = ?, category = ?, subcategory = ?, note = ?, frequency = ?
+     WHERE id = ?`,
+    fields.amount,
+    fields.category,
+    fields.subcategory.trim(),
+    fields.note.trim(),
+    fields.frequency,
+    id,
+  );
+}
+
+export async function deleteRecurring(id: number): Promise<void> {
+  const database = await getDb();
+  await database.runAsync('DELETE FROM recurring WHERE id = ?', id);
+}
+
+// Catch-up pass: for every active rule whose next_run is due, post one real
+// transaction per missed occurrence (with the occurrence's own timestamp so it
+// lands in the correct month for Trends), then advance next_run past now.
+// Returns the number of transactions inserted so the caller can trigger a refresh.
+export async function processRecurring(): Promise<number> {
+  const database = await getDb();
+  const now = Date.now();
+  const due = await database.getAllAsync<{
+    id: number;
+    amount: number;
+    category: Category;
+    subcategory: string;
+    note: string;
+    frequency: Frequency;
+    next_run: number;
+  }>('SELECT * FROM recurring WHERE active = 1 AND next_run <= ?', now);
+
+  let inserted = 0;
+  await database.withTransactionAsync(async () => {
+    for (const rule of due) {
+      let run = rule.next_run;
+      // advance() is strictly increasing, so this loop always terminates.
+      while (run <= now) {
+        await database.runAsync(
+          'INSERT INTO transactions (amount, category, subcategory, note, timestamp) VALUES (?, ?, ?, ?, ?)',
+          rule.amount,
+          rule.category,
+          rule.subcategory,
+          rule.note,
+          run,
+        );
+        inserted += 1;
+        run = advance(run, rule.frequency);
+      }
+      await database.runAsync('UPDATE recurring SET next_run = ? WHERE id = ?', run, rule.id);
+    }
+  });
+
+  return inserted;
 }
 
 // ─── Monthly totals (for Trends screen) ──────────────────────────────────────

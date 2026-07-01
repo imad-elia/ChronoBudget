@@ -3,13 +3,27 @@ import { COUNTRIES, DEFAULT_COUNTRY, findCountry } from '../constants/countries'
 import { setActiveLocale } from '../lib/i18n';
 import {
   fetchLearnedKeywords,
+  fetchRecurring,
   getSetting,
   setSetting,
 } from '../db/database';
 
 type Category = 'needs' | 'wants' | 'savings';
 
+type Frequency = 'weekly' | 'monthly' | 'yearly';
+
 type LearnedKeywords = Record<string, { category: Category; subcategory: string }>;
+
+interface RecurringRule {
+  id: number;
+  amount: number;
+  category: Category;
+  subcategory: string;
+  note: string;
+  frequency: Frequency;
+  nextRun: number;
+  active: number;
+}
 
 interface Transaction {
   id: number;
@@ -44,6 +58,10 @@ interface BudgetStore {
   learnedKeywords: LearnedKeywords;
   loadLearnedKeywords: () => Promise<void>;
 
+  // Recurring rules (cached from SQLite for the manager modal)
+  recurring: RecurringRule[];
+  loadRecurring: () => Promise<void>;
+
   // Localization (currency + formatting)
   country: string;
   locale: string;
@@ -70,6 +88,12 @@ export const useBudgetStore = create<BudgetStore>((set) => ({
   loadLearnedKeywords: async () => {
     const map = await fetchLearnedKeywords();
     set({ learnedKeywords: map });
+  },
+
+  recurring: [],
+  loadRecurring: async () => {
+    const rules = await fetchRecurring();
+    set({ recurring: rules });
   },
 
   country: DEFAULT_COUNTRY.code,
@@ -115,4 +139,4 @@ interface MonthlyTotal {
   savings: number;
 }
 
-export type { Transaction, Category, CategoryTotals, CategoryLimits, MonthlyTotal };
+export type { Transaction, Category, CategoryTotals, CategoryLimits, MonthlyTotal, RecurringRule, Frequency };

@@ -15,7 +15,7 @@ None. No `.env` files are used.
 
 `getDb()` opens the connection **and runs migrations** as one memoized promise (`openAndMigrate`), so every helper waits for a fully-migrated schema. `initDb()` is just `await getDb()`.
 
-## SQLite schema (schema version 4)
+## SQLite schema (schema version 5)
 
 ### `transactions`
 
@@ -71,6 +71,25 @@ CREATE TABLE keyword_learn (
 Stores learned keyword → category/subcategory mappings for the smart input
 classifier (see [[smart-input-classifier]]).
 
+### `recurring` (schema v5)
+
+```sql
+CREATE TABLE recurring (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  amount      REAL    NOT NULL CHECK(amount > 0),
+  category    TEXT    NOT NULL CHECK(category IN ('needs', 'wants', 'savings')),
+  subcategory TEXT    NOT NULL DEFAULT '',
+  note        TEXT    NOT NULL DEFAULT '',
+  frequency   TEXT    NOT NULL CHECK(frequency IN ('weekly', 'monthly', 'yearly')),
+  next_run    INTEGER NOT NULL,             -- next due timestamp (ms)
+  active      INTEGER NOT NULL DEFAULT 1,
+  created_at  INTEGER NOT NULL DEFAULT (unixepoch())
+);
+```
+
+Recurring rules that auto-generate transactions. Day-of-month/weekday is implicit
+in `next_run` (no anchor column). See [[recurring-transactions]].
+
 ## Migration history
 
 | Version | Change |
@@ -79,6 +98,7 @@ classifier (see [[smart-input-classifier]]).
 | v2 | Create `budget_limits` table |
 | v3 | `ALTER TABLE transactions ADD COLUMN subcategory`; create `app_settings` table |
 | v4 | Create `keyword_learn` table (smart-input learning) |
+| v5 | Create `recurring` table (recurring transactions) |
 
 Migration strategy: incremental `if (user_version < N)` blocks in `initDb()`. v1 was destructive (dev-safe at the time); v2 and v3 are additive.
 
@@ -99,6 +119,10 @@ Migration strategy: incremental `if (user_version < N)` blocks in `initDb()`. v1
 | `fetchMonthlyTotals(months = 6)` | SUM per category grouped by calendar month, for the Trends screen. Returns `MonthlyTotal[]` with zero-filled gaps for the last N months. |
 | `fetchLearnedKeywords()` | Load all `keyword_learn` rows into a `Record<keyword, {category, subcategory}>` for the smart-input cache. |
 | `learnKeyword(keyword, category, subcategory)` | Upsert a learned keyword mapping (increments `count`). See [[smart-input-classifier]]. |
+| `fetchRecurring()` | All recurring rules (`next_run` aliased to `nextRun`), ordered by next due. |
+| `insertRecurring(rule)` | Create a rule with `next_run = now` (first occurrence posts on next `processRecurring`). |
+| `updateRecurring(id, fields)` / `deleteRecurring(id)` | Edit / remove a rule. |
+| `processRecurring()` | Catch-up pass: post one transaction per due/missed occurrence, advance `next_run` past now; returns count inserted. See [[recurring-transactions]]. |
 
 ## Formatting & i18n helpers (not DB)
 
@@ -106,6 +130,7 @@ Migration strategy: incremental `if (user_version < N)` blocks in `initDb()`. v1
   `formatDate`, driven by the store's locale/currency (Intl + manual fallback).
 - `lib/i18n.ts` — `t(key, vars)` + `setActiveLocale`; strings in `constants/i18n/en.ts`.
 - `lib/detectCategory.ts` — `parseEntry` / `detectCategory` / `learnKey` (pure).
+- `lib/recurrence.ts` — `advance(ts, freq)` date math (pure). See [[recurring-transactions]].
 - `constants/countries.ts`, `constants/keywordMap.ts` — static data.
 - See [[localization]] and [[smart-input-classifier]].
 

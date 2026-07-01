@@ -26,6 +26,7 @@ import { BentoCard } from '../../components/BentoCard';
 import { ExpenseInput } from '../../components/ExpenseInput';
 import { OnboardingOverlay } from '../../components/OnboardingOverlay';
 import { SettingsModal } from '../../components/SettingsModal';
+import { RecurringModal } from '../../components/RecurringModal';
 import {
   initDb,
   fetchCategoryTotals,
@@ -34,6 +35,7 @@ import {
   fetchLimits,
   setLimit,
   getSetting,
+  processRecurring,
 } from '../../db/database';
 import { useBudgetStore, type Transaction, type CategoryTotals, type Category } from '../../store/useBudgetStore';
 import { theme } from '../../theme';
@@ -271,7 +273,7 @@ const modalStyles = StyleSheet.create({
 
 // ─── Dashboard header ─────────────────────────────────────────────────────────
 
-function DashboardHeader({ totals, onOpenLimits, onOpenSettings, topInset }: { totals: CategoryTotals; onOpenLimits: () => void; onOpenSettings: () => void; topInset: number }) {
+function DashboardHeader({ totals, onOpenLimits, onOpenSettings, onOpenRecurring, topInset }: { totals: CategoryTotals; onOpenLimits: () => void; onOpenSettings: () => void; onOpenRecurring: () => void; topInset: number }) {
   const limits = useBudgetStore((s) => s.limits);
   // Subscribe to currency so the header re-renders when the user changes country.
   useBudgetStore((s) => s.currency);
@@ -287,6 +289,9 @@ function DashboardHeader({ totals, onOpenLimits, onOpenSettings, topInset }: { t
           <Text style={headerStyles.balance} numberOfLines={1} adjustsFontSizeToFit>{formatted}</Text>
         </View>
         <View style={headerStyles.headerActions}>
+          <TouchableOpacity style={headerStyles.iconBtn} onPress={onOpenRecurring} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Icon name="autorenew" size={20} color={theme.colors.textMuted} />
+          </TouchableOpacity>
           <TouchableOpacity style={headerStyles.iconBtn} onPress={onOpenSettings} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Icon name="cog-outline" size={20} color={theme.colors.textMuted} />
           </TouchableOpacity>
@@ -317,9 +322,9 @@ function DashboardHeader({ totals, onOpenLimits, onOpenSettings, topInset }: { t
 const headerStyles = StyleSheet.create({
   container: { paddingBottom: theme.spacing.md },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: theme.spacing.lg },
-  titleSpacer: { width: 64 },
+  titleSpacer: { width: 96 },
   titleCenter: { flex: 1, alignItems: 'center' },
-  headerActions: { width: 64, flexDirection: 'row', justifyContent: 'flex-end', gap: theme.spacing.sm, paddingTop: 4 },
+  headerActions: { width: 96, flexDirection: 'row', justifyContent: 'flex-end', gap: theme.spacing.sm, paddingTop: 4 },
   iconBtn: { alignItems: 'flex-end' },
   label: { ...theme.typography.labelLarge, color: theme.colors.textMuted, textAlign: 'center', marginBottom: theme.spacing.xs },
   balance: { ...theme.typography.displayLarge, color: theme.colors.textPrimary, textAlign: 'center' },
@@ -351,6 +356,7 @@ export default function DashboardScreen() {
   const [dbReady, setDbReady] = useState(false);
   const [limitsOpen, setLimitsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [recurringOpen, setRecurringOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   const refreshCounter = useBudgetStore((s) => s.refreshCounter);
@@ -361,11 +367,16 @@ export default function DashboardScreen() {
   useEffect(() => {
     initDb()
       .then(async () => {
-        // Load locale/currency and learned keywords before revealing the UI so
-        // amounts render in the right currency and the smart input can classify.
+        // Post any due/missed recurring occurrences before the first fetch so
+        // they're already reflected in totals and the recent list.
+        await processRecurring();
+        // Load locale/currency, learned keywords, and recurring rules before
+        // revealing the UI so amounts render in the right currency and the smart
+        // input can classify.
         await Promise.all([
           useBudgetStore.getState().loadLocale(),
           useBudgetStore.getState().loadLearnedKeywords(),
+          useBudgetStore.getState().loadRecurring(),
         ]);
         setDbReady(true);
         const done = await getSetting('onboarding_complete');
@@ -405,7 +416,7 @@ export default function DashboardScreen() {
           keyExtractor={(item) => String(item.id)}
           renderItem={renderItem}
           ListHeaderComponent={
-            <DashboardHeader totals={totals} onOpenLimits={() => setLimitsOpen(true)} onOpenSettings={() => setSettingsOpen(true)} topInset={insets.top} />
+            <DashboardHeader totals={totals} onOpenLimits={() => setLimitsOpen(true)} onOpenSettings={() => setSettingsOpen(true)} onOpenRecurring={() => setRecurringOpen(true)} topInset={insets.top} />
           }
           ListEmptyComponent={<EmptyState />}
           contentContainerStyle={[screenStyles.listContent, { paddingBottom: insets.bottom + 16 }]}
@@ -428,6 +439,11 @@ export default function DashboardScreen() {
       <SettingsModal
         visible={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+      />
+
+      <RecurringModal
+        visible={recurringOpen}
+        onClose={() => setRecurringOpen(false)}
       />
 
       <OnboardingOverlay

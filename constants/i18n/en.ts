@@ -45,6 +45,21 @@ export const en = {
   'settings.done': 'Done',
   'settings.regionHint': 'Sets your currency and number formatting.',
 
+  // Recurring
+  'recurring.title': 'Recurring',
+  'recurring.subtitle': 'Rules post automatically each period. You can delete any posted transaction.',
+  'recurring.add': 'Add recurring',
+  'recurring.empty': 'No recurring rules yet',
+  'recurring.weekly': 'Weekly',
+  'recurring.monthly': 'Monthly',
+  'recurring.yearly': 'Yearly',
+  'recurring.frequency': 'Frequency',
+  'recurring.next': 'next {date}',
+  'recurring.amountPlaceholder': '0.00',
+  'recurring.notePlaceholder': 'Add a note (optional)',
+  'recurring.save': 'Save rule',
+  'recurring.done': 'Done',
+
   // Onboarding
   'onboarding.countryTitle': 'Where are you?',
   'onboarding.countrySubtitle': 'We’ll set your currency and formatting. You can change it later in Settings.',
