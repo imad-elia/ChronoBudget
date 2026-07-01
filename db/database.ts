@@ -10,7 +10,7 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   return db;
 }
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 export async function initDb(): Promise<void> {
   const database = await getDb();
@@ -25,14 +25,14 @@ export async function initDb(): Promise<void> {
       DROP TABLE IF EXISTS transactions;
 
       CREATE TABLE transactions (
-        id        INTEGER PRIMARY KEY AUTOINCREMENT,
-        amount    REAL    NOT NULL CHECK(amount > 0),
-        category  TEXT    NOT NULL CHECK(category IN ('needs', 'wants', 'savings')),
-        note      TEXT    NOT NULL DEFAULT '',
-        timestamp INTEGER NOT NULL DEFAULT (unixepoch())
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        amount      REAL    NOT NULL CHECK(amount > 0),
+        category    TEXT    NOT NULL CHECK(category IN ('needs', 'wants', 'savings')),
+        note        TEXT    NOT NULL DEFAULT '',
+        timestamp   INTEGER NOT NULL DEFAULT (unixepoch())
       );
 
-      CREATE INDEX idx_transactions_category ON transactions(category);
+      CREATE INDEX idx_transactions_category  ON transactions(category);
       CREATE INDEX idx_transactions_timestamp ON transactions(timestamp DESC);
     `);
   }
@@ -46,7 +46,39 @@ export async function initDb(): Promise<void> {
     `);
   }
 
+  if (user_version < 3) {
+    await database.execAsync(`
+      ALTER TABLE transactions ADD COLUMN subcategory TEXT NOT NULL DEFAULT '';
+
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key   TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+    `);
+  }
+
   await database.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION};`);
+}
+
+// ─── App settings ─────────────────────────────────────────────────────────────
+
+export async function getSetting(key: string): Promise<string | null> {
+  const database = await getDb();
+  const rows = await database.getAllAsync<{ value: string }>(
+    'SELECT value FROM app_settings WHERE key = ?',
+    key,
+  );
+  return rows.length > 0 ? rows[0].value : null;
+}
+
+export async function setSetting(key: string, value: string): Promise<void> {
+  const database = await getDb();
+  await database.runAsync(
+    `INSERT INTO app_settings (key, value) VALUES (?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    key,
+    value,
+  );
 }
 
 // ─── Transactions ─────────────────────────────────────────────────────────────
@@ -54,13 +86,15 @@ export async function initDb(): Promise<void> {
 export async function insertTransaction(
   amount: number,
   category: Category,
+  subcategory: string,
   note: string,
 ): Promise<void> {
   const database = await getDb();
   await database.runAsync(
-    'INSERT INTO transactions (amount, category, note, timestamp) VALUES (?, ?, ?, ?)',
+    'INSERT INTO transactions (amount, category, subcategory, note, timestamp) VALUES (?, ?, ?, ?, ?)',
     amount,
     category,
+    subcategory.trim(),
     note.trim(),
     Date.now(),
   );
@@ -78,7 +112,6 @@ export async function fetchCategoryTotals(): Promise<CategoryTotals> {
      FROM transactions
      GROUP BY category`,
   );
-
   const totals: CategoryTotals = { needs: 0, wants: 0, savings: 0 };
   for (const row of rows) {
     totals[row.category] = row.total;
@@ -89,7 +122,7 @@ export async function fetchCategoryTotals(): Promise<CategoryTotals> {
 export async function fetchRecentTransactions(limit = 20): Promise<Transaction[]> {
   const database = await getDb();
   return database.getAllAsync<Transaction>(
-    `SELECT id, amount, category, note, timestamp
+    `SELECT id, amount, category, subcategory, note, timestamp
      FROM transactions
      ORDER BY timestamp DESC
      LIMIT ?`,
@@ -104,7 +137,7 @@ export async function fetchTransactions(
   const database = await getDb();
   if (category) {
     return database.getAllAsync<Transaction>(
-      `SELECT id, amount, category, note, timestamp
+      `SELECT id, amount, category, subcategory, note, timestamp
        FROM transactions
        WHERE category = ?
        ORDER BY timestamp DESC
@@ -114,7 +147,7 @@ export async function fetchTransactions(
     );
   }
   return database.getAllAsync<Transaction>(
-    `SELECT id, amount, category, note, timestamp
+    `SELECT id, amount, category, subcategory, note, timestamp
      FROM transactions
      ORDER BY timestamp DESC
      LIMIT ?`,

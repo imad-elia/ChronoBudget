@@ -6,6 +6,7 @@ interface Transaction {
   id: number;
   amount: number;
   category: Category;
+  subcategory: string;
   note: string;
   timestamp: number;
 }
@@ -16,7 +17,7 @@ interface CategoryTotals {
   savings: number;
 }
 
-type CategoryLimits = CategoryTotals; // same shape: { needs, wants, savings } in dollars (0 = no limit)
+type CategoryLimits = CategoryTotals;
 
 interface BudgetStore {
   refreshCounter: number;

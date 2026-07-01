@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BentoCard } from '../../components/BentoCard';
 import { ExpenseInput } from '../../components/ExpenseInput';
+import { OnboardingOverlay } from '../../components/OnboardingOverlay';
 import {
   initDb,
   fetchCategoryTotals,
@@ -31,6 +32,7 @@ import {
   deleteTransaction,
   fetchLimits,
   setLimit,
+  getSetting,
 } from '../../db/database';
 import { useBudgetStore, type Transaction, type CategoryTotals, type Category } from '../../store/useBudgetStore';
 import { theme } from '../../theme';
@@ -91,7 +93,9 @@ function TransactionRow({ item, onDelete }: { item: Transaction; onDelete: (id: 
           <Icon name={config.icon} size={18} color={config.color} />
         </View>
         <View style={rowStyles.meta}>
-          <Text style={rowStyles.note} numberOfLines={1}>{item.note || config.title}</Text>
+          <Text style={rowStyles.note} numberOfLines={1}>
+            {item.subcategory || item.note || config.title}
+          </Text>
           <Text style={rowStyles.date}>{date}</Text>
         </View>
         <Text style={[rowStyles.amount, { color: config.color }]}>{formatted}</Text>
@@ -335,13 +339,20 @@ export default function DashboardScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [dbReady, setDbReady] = useState(false);
   const [limitsOpen, setLimitsOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const refreshCounter = useBudgetStore((s) => s.refreshCounter);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
 
-  useEffect(() => { initDb().then(() => setDbReady(true)); }, []);
+  useEffect(() => {
+    initDb().then(async () => {
+      setDbReady(true);
+      const done = await getSetting('onboarding_complete');
+      if (!done) setShowOnboarding(true);
+    });
+  }, []);
 
   useEffect(() => {
     if (!dbReady) return;
@@ -390,6 +401,11 @@ export default function DashboardScreen() {
         visible={limitsOpen}
         onClose={() => setLimitsOpen(false)}
         onSave={() => useBudgetStore.getState().triggerRefresh()}
+      />
+
+      <OnboardingOverlay
+        visible={showOnboarding}
+        onDone={() => setShowOnboarding(false)}
       />
     </View>
   );
