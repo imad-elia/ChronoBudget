@@ -63,6 +63,9 @@ export const en = {
   // Onboarding
   'onboarding.countryTitle': 'Where are you?',
   'onboarding.countrySubtitle': 'We’ll set your currency and formatting. You can change it later in Settings.',
+  'onboarding.countryColumn': 'Country',
+  'onboarding.currencyColumn': 'Currency',
+  'onboarding.countryHint': 'Highlighted country applies if you tap Continue.',
   'onboarding.continue': 'Continue',
 } as const;
 

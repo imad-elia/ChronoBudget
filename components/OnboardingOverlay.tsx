@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -61,6 +61,7 @@ export function OnboardingOverlay({ visible, onDone }: Props) {
   const storeCountry = useBudgetStore((s) => s.country);
   const setCountry = useBudgetStore((s) => s.setCountry);
   const [picked, setPicked] = useState(storeCountry);
+  const listRef = useRef<ScrollView>(null);
   const current = STEPS[step];
   const isLast = step === STEPS.length - 1;
   const isFirst = step === 0;
@@ -71,6 +72,21 @@ export function OnboardingOverlay({ visible, onDone }: Props) {
     const match = findCountry(region);
     if (match) setPicked(match.code);
   }, []);
+
+  // Scroll the pre-selected (default) country into view once, so it's
+  // obvious what will be applied if the user taps Continue without picking
+  // one. Only runs on the initial default — not on every manual selection.
+  const scrolledToDefault = useRef(false);
+  useEffect(() => {
+    if (scrolledToDefault.current) return;
+    const index = COUNTRIES.findIndex((c) => c.code === picked);
+    if (index < 0) return;
+    scrolledToDefault.current = true;
+    const id = setTimeout(() => {
+      listRef.current?.scrollTo({ y: Math.max(0, index * ROW_HEIGHT - ROW_HEIGHT), animated: false });
+    }, 0);
+    return () => clearTimeout(id);
+  }, [picked]);
 
   async function handleContinueCountry() {
     await setCountry(picked);
@@ -97,30 +113,48 @@ export function OnboardingOverlay({ visible, onDone }: Props) {
       <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.overlay}>
           <View style={StyleSheet.absoluteFillObject as any} />
-          <View style={[styles.card, styles.cardCenter]}>
+          <View style={[styles.card, styles.cardCenter, styles.cardCountry]}>
             <View style={styles.iconWrap}>
               <Icon name="earth" size={32} color={theme.colors.neonGreen} />
             </View>
             <Text style={styles.title}>{t('onboarding.countryTitle')}</Text>
             <Text style={styles.body}>{t('onboarding.countrySubtitle')}</Text>
 
-            <ScrollView style={countryStyles.list} showsVerticalScrollIndicator={false}>
-              {COUNTRIES.map((c) => {
-                const active = c.code === picked;
-                return (
-                  <TouchableOpacity
-                    key={c.code}
-                    style={[countryStyles.row, active && countryStyles.rowActive]}
-                    onPress={() => setPicked(c.code)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[countryStyles.name, active && countryStyles.nameActive]}>{c.name}</Text>
-                    <Text style={countryStyles.currency}>{c.symbol} {c.currency}</Text>
-                    {active && <Icon name="check" size={16} color={theme.colors.neonGreen} style={countryStyles.check} />}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+            <View style={countryStyles.panel}>
+              <View style={countryStyles.headerRow}>
+                <Text style={countryStyles.headerLabel}>{t('onboarding.countryColumn')}</Text>
+                <Text style={countryStyles.headerLabel}>{t('onboarding.currencyColumn')}</Text>
+              </View>
+              <ScrollView
+                ref={listRef}
+                style={countryStyles.list}
+                contentContainerStyle={countryStyles.listContent}
+                showsVerticalScrollIndicator
+                indicatorStyle="white"
+                nestedScrollEnabled
+              >
+                {COUNTRIES.map((c) => {
+                  const active = c.code === picked;
+                  return (
+                    <TouchableOpacity
+                      key={c.code}
+                      style={[countryStyles.row, active && countryStyles.rowActive]}
+                      onPress={() => setPicked(c.code)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[countryStyles.name, active && countryStyles.nameActive]}>{c.name}</Text>
+                      <View style={countryStyles.currencyWrap}>
+                        <Text style={[countryStyles.currency, active && countryStyles.currencyActive]}>{c.symbol} {c.currency}</Text>
+                        {active
+                          ? <Icon name="check-circle" size={16} color={theme.colors.neonGreen} style={countryStyles.check} />
+                          : <View style={countryStyles.checkPlaceholder} />}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+            <Text style={countryStyles.hint}>{t('onboarding.countryHint')}</Text>
 
             <TouchableOpacity
               style={[styles.nextBtn, { backgroundColor: theme.colors.neonGreen, width: '100%' }]}
@@ -146,7 +180,7 @@ export function OnboardingOverlay({ visible, onDone }: Props) {
           style={[
             styles.card,
             useAnchor
-              ? { position: 'absolute', bottom: current.anchorFromBottom, left: 24, right: 24 }
+              ? [styles.cardAnchored, { bottom: current.anchorFromBottom }]
               : styles.cardCenter,
           ]}
         >
@@ -220,6 +254,16 @@ const styles = StyleSheet.create({
     marginHorizontal: 24,
     alignSelf: 'center',
     width: '88%',
+    maxWidth: 420,
+  },
+  cardCountry: {
+    maxHeight: '86%',
+  },
+  cardAnchored: {
+    position: 'absolute',
+    width: '88%',
+    maxWidth: 420,
+    alignSelf: 'center',
   },
   arrowDown: {
     position: 'absolute',
@@ -309,8 +353,33 @@ const styles = StyleSheet.create({
   },
 });
 
+const ROW_HEIGHT = 54; // row height (46) + marginBottom (theme.spacing.sm = 8)
+
 const countryStyles = StyleSheet.create({
-  list: { width: '100%', maxHeight: 260, marginVertical: theme.spacing.xs },
+  panel: {
+    width: '100%',
+    marginVertical: theme.spacing.xs,
+    backgroundColor: theme.colors.bgTertiary,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.glassBorder,
+    overflow: 'hidden',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.glassBorder,
+  },
+  headerLabel: {
+    ...theme.typography.labelSmall,
+    color: theme.colors.textMuted,
+    letterSpacing: 1,
+  },
+  list: { width: '100%', height: ROW_HEIGHT * 4.5 },
+  listContent: { padding: theme.spacing.sm },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -326,6 +395,14 @@ const countryStyles = StyleSheet.create({
   rowActive: { borderColor: theme.colors.neonGreen, backgroundColor: `${theme.colors.neonGreen}14` },
   name: { ...theme.typography.bodyLarge, color: theme.colors.textSecondary, flex: 1 },
   nameActive: { color: theme.colors.textPrimary },
+  currencyWrap: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs },
   currency: { ...theme.typography.bodyMedium, color: theme.colors.textMuted },
-  check: { marginLeft: theme.spacing.xs },
+  currencyActive: { color: theme.colors.textPrimary },
+  check: { width: 16 },
+  checkPlaceholder: { width: 16 },
+  hint: {
+    ...theme.typography.labelSmall,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+  },
 });
