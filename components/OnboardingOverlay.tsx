@@ -6,6 +6,7 @@ import {
   Modal,
   ScrollView,
   StyleSheet,
+  useWindowDimensions,
 } from 'react-native';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import * as Localization from 'expo-localization';
@@ -62,6 +63,7 @@ export function OnboardingOverlay({ visible, onDone }: Props) {
   const setCountry = useBudgetStore((s) => s.setCountry);
   const [picked, setPicked] = useState(storeCountry);
   const listRef = useRef<ScrollView>(null);
+  const { height: windowHeight } = useWindowDimensions();
   const current = STEPS[step];
   const isLast = step === STEPS.length - 1;
   const isFirst = step === 0;
@@ -113,7 +115,16 @@ export function OnboardingOverlay({ visible, onDone }: Props) {
       <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.overlay}>
           <View style={StyleSheet.absoluteFillObject as any} />
-          <View style={[styles.card, styles.cardCenter, styles.cardCountry]}>
+          <View style={[styles.card, styles.cardCenter, styles.cardCountry, { maxHeight: windowHeight - 80 }]}>
+            {/* Everything except the Continue button lives in this scrollable
+                region, so the button is always visible no matter how short
+                the screen is (small phones, landscape, split view). */}
+            <ScrollView
+              style={countryStyles.scrollArea}
+              contentContainerStyle={countryStyles.scrollAreaContent}
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
+            >
             <View style={styles.iconWrap}>
               <Icon name="earth" size={32} color={theme.colors.neonGreen} />
             </View>
@@ -155,9 +166,10 @@ export function OnboardingOverlay({ visible, onDone }: Props) {
               </ScrollView>
             </View>
             <Text style={countryStyles.hint}>{t('onboarding.countryHint')}</Text>
+            </ScrollView>
 
             <TouchableOpacity
-              style={[styles.nextBtn, { backgroundColor: theme.colors.neonGreen, width: '100%' }]}
+              style={[styles.nextBtn, countryStyles.continueBtn, { backgroundColor: theme.colors.neonGreen }]}
               onPress={handleContinueCountry}
               activeOpacity={0.8}
             >
@@ -257,7 +269,9 @@ const styles = StyleSheet.create({
     maxWidth: 420,
   },
   cardCountry: {
-    maxHeight: '86%',
+    // Cap comes from windowHeight at render time; children must be able to
+    // shrink (see countryStyles.panel/list) so the Continue button always fits.
+    overflow: 'hidden',
   },
   cardAnchored: {
     position: 'absolute',
@@ -356,6 +370,23 @@ const styles = StyleSheet.create({
 const ROW_HEIGHT = 54; // row height (46) + marginBottom (theme.spacing.sm = 8)
 
 const countryStyles = StyleSheet.create({
+  // styles.nextBtn has flex:2 for the tour card's horizontal actions row; in
+  // this vertical layout that collapses the button to 0 height, so reset it.
+  continueBtn: {
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
+    width: '100%',
+  },
+  scrollArea: {
+    width: '100%',
+    flexGrow: 0,
+    flexShrink: 1,
+  },
+  scrollAreaContent: {
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
   panel: {
     width: '100%',
     marginVertical: theme.spacing.xs,
