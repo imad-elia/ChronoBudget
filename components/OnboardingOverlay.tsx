@@ -169,7 +169,7 @@ export function OnboardingOverlay({ visible, onDone }: Props) {
             </ScrollView>
 
             <TouchableOpacity
-              style={[styles.nextBtn, countryStyles.continueBtn, { backgroundColor: theme.colors.neonGreen }]}
+              style={countryStyles.continueBtn}
               onPress={handleContinueCountry}
               activeOpacity={0.8}
             >
@@ -370,13 +370,18 @@ const styles = StyleSheet.create({
 const ROW_HEIGHT = 54; // row height (46) + marginBottom (theme.spacing.sm = 8)
 
 const countryStyles = StyleSheet.create({
-  // styles.nextBtn has flex:2 for the tour card's horizontal actions row; in
-  // this vertical layout that collapses the button to 0 height, so reset it.
+  // Deliberately does NOT reuse styles.nextBtn: its flex:2 (meant for the
+  // tour card's horizontal actions row) collapses the button to 0 height in
+  // this vertical layout on native Yoga, even when flexGrow/flexBasis are
+  // overridden — Yoga treats flexBasis:'auto' as unset, so flex's implicit
+  // basis 0 wins. Keep this style flex-free and self-contained.
   continueBtn: {
-    flexGrow: 0,
-    flexShrink: 0,
-    flexBasis: 'auto',
     width: '100%',
+    height: 46,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.neonGreen,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollArea: {
     width: '100%',
