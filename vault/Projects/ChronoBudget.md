@@ -18,7 +18,7 @@ Offline-first mobile expense tracker built for OLED dark-mode phones. Users log 
 | Gradients | expo-linear-gradient |
 | Safe area | react-native-safe-area-context |
 
-## Current status (as of 2026-07-01)
+## Current status (as of 2026-07-03)
 
 - Dashboard screen: fully working
 - History screen: fully working (+ CSV export on native)
@@ -30,6 +30,7 @@ Offline-first mobile expense tracker built for OLED dark-mode phones. Users log 
 - Budget limits: implemented with progress bars in BentoCards; over-limit state shows the true % (uncapped) + a magenta OVER badge.
 - Recurring transactions: weekly/monthly/yearly rules (Recurring manager modal, autorenew header icon) that auto-post real transactions on app open, with month-end-clamped date math and missed-period catch-up. See [[recurring-transactions]].
 - Web build: functional. Web uses in-memory SQLite (dev preview); native uses persistent WAL. See [[web-inmemory-db]].
+- iOS build: verified working on iOS Simulator (iPhone 17 Pro, iOS 26.5) via macOS 13 VM (Intel, Xcode 26.5). `ios.bundleIdentifier` set in `app.json`. Onboarding country picker redesigned as a bounded table panel; native-only flex-collapse bug fixed. See [[2026-07-03-session]].
 
 ## Known issues
 

@@ -6,10 +6,14 @@ None.
 
 ## Known non-issues (won't fix)
 
+- **iOS Simulator keyboard log spam** — `[CoreHaptics] hapticpatternlibrary.plist ... no such file`, `[RemoteTextInput] RTIInputSystemClient ... valid sessionID`, `[TextInputUI] Result accumulator timeout`. Simulator-only system-framework noise on every keypress; never occurs on real devices. Not project code.
+
 - **Web: `props.pointerEvents is deprecated. Use style.pointerEvents`** — emitted by a dependency (React Navigation / Expo internals), not project code. Cosmetic; resolves when those libs update.
 - **Web: onboarding re-shows on every reload** — expected. Web uses an in-memory DB ([[web-inmemory-db]]), so the `onboarding_complete` flag resets each reload. Native persists correctly.
 
 ## Resolved (for reference)
+
+- **Onboarding Continue button invisible on iOS (country step)** — the button reused `styles.nextBtn` (`flex: 2`, meant for a horizontal row); in the vertical country card Yoga collapsed it to 0 height. `flexBasis: 'auto'` overrides fix web but not native (Yoga treats `auto` as unset). Fixed with a self-contained flex-free `continueBtn` style + footer-pinned card layout (scrollable body, `windowHeight - 80` cap). See [[2026-07-03-session]]. Fixed 2026-07-03.
 
 - **"no such column: category"** — stale browser SQLite DB from before schema v1. Fixed by schema versioning + v1 migration.
 - **"Unistyles runtime is not available" on Expo Go Android** — react-native-unistyles requires JSI. Fixed by removing the library and replacing with a static `theme` object + `StyleSheet.create`.
