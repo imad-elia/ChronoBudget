@@ -190,6 +190,11 @@ export async function learnKeyword(
   );
 }
 
+export async function deleteLearnedKeyword(keyword: string): Promise<void> {
+  const database = await getDb();
+  await database.runAsync('DELETE FROM keyword_learn WHERE keyword = ?', keyword.trim().toLowerCase());
+}
+
 // ─── Transactions ─────────────────────────────────────────────────────────────
 
 export async function insertTransaction(

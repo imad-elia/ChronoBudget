@@ -15,6 +15,7 @@ import { useBudgetStore, COUNTRIES, type Category } from '../store/useBudgetStor
 import { theme } from '../theme';
 import { t } from '../lib/i18n';
 import { setBalance, fetchBalances } from '../db/database';
+import { KeywordsModal } from './KeywordsModal';
 
 const BALANCE_CATEGORIES: { id: Category; label: string; color: string }[] = [
   { id: 'needs',   label: t('category.needs'),   color: '#00FF87' },
@@ -31,6 +32,7 @@ export function SettingsModal({ visible, onClose }: { visible: boolean; onClose:
   const [drafts, setDrafts] = useState<Record<Category, string>>({
     needs: '', wants: '', savings: '',
   });
+  const [keywordsOpen, setKeywordsOpen] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -106,11 +108,19 @@ export function SettingsModal({ visible, onClose }: { visible: boolean; onClose:
             </View>
           ))}
 
+          <TouchableOpacity style={styles.keywordsRow} onPress={() => setKeywordsOpen(true)} activeOpacity={0.7}>
+            <Icon name="tag-multiple-outline" size={16} color={theme.colors.textSecondary} />
+            <Text style={styles.keywordsLabel}>{t('settings.keywords')}</Text>
+            <Icon name="chevron-right" size={16} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.done} onPress={handleDone} activeOpacity={0.8}>
             <Text style={styles.doneLabel}>{t('settings.done')}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      <KeywordsModal visible={keywordsOpen} onClose={() => setKeywordsOpen(false)} />
     </Modal>
   );
 }
@@ -173,6 +183,18 @@ const styles = StyleSheet.create({
   countryNameActive: { color: theme.colors.textPrimary },
   currencyCode: { ...theme.typography.bodyMedium, color: theme.colors.textMuted },
   check: { marginLeft: theme.spacing.xs },
+  keywordsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: theme.spacing.md,
+    height: 48,
+  },
+  keywordsLabel: { ...theme.typography.bodyLarge, color: theme.colors.textSecondary, flex: 1 },
   done: {
     height: 48,
     borderRadius: theme.radius.md,

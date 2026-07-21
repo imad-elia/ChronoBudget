@@ -81,6 +81,18 @@ export const en = {
   'settings.balances': 'Starting balances',
   'settings.balancesHint': 'How much money you have per category. Leave blank for none.',
   'card.remaining': 'left',
+
+  // Manual keywords (settings + keywords modal)
+  'settings.keywords': 'My Keywords',
+  'keywords.title': 'My Keywords',
+  'keywords.hint': 'Teach Fast input to recognize your own words.',
+  'keywords.add': 'Add keyword',
+  'keywords.wordPlaceholder': 'Word (e.g. "gymbox")',
+  'keywords.empty': 'No custom keywords yet.',
+  'keywords.save': 'Save',
+  'keywords.cancel': 'Cancel',
+  'keywords.errWord': 'Enter a word.',
+  'keywords.errSubcategory': 'Choose a subcategory.',
 } as const;
 
 export type StringKey = keyof typeof en;
