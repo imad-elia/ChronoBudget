@@ -27,6 +27,7 @@ import { ExpenseInput } from '../../components/ExpenseInput';
 import { OnboardingOverlay } from '../../components/OnboardingOverlay';
 import { SettingsModal } from '../../components/SettingsModal';
 import { RecurringModal } from '../../components/RecurringModal';
+import { EditTransactionModal } from '../../components/EditTransactionModal';
 import {
   initDb,
   fetchCategoryTotals,
@@ -34,6 +35,7 @@ import {
   deleteTransaction,
   fetchLimits,
   setLimit,
+  fetchBalances,
   getSetting,
   processRecurring,
 } from '../../db/database';
@@ -71,7 +73,7 @@ const BENTO_CONFIG = [
 
 // ─── Transaction row ──────────────────────────────────────────────────────────
 
-function TransactionRow({ item, onDelete }: { item: Transaction; onDelete: (id: number) => void }) {
+function TransactionRow({ item, onDelete, onEdit }: { item: Transaction; onDelete: (id: number) => void; onEdit: (tx: Transaction) => void }) {
   const config = BENTO_CONFIG.find((c) => c.id === item.category)!;
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -90,6 +92,7 @@ function TransactionRow({ item, onDelete }: { item: Transaction; onDelete: (id: 
       <Animated.View style={animStyle}>
       <TouchableOpacity
         style={rowStyles.row}
+        onPress={() => onEdit(item)}
         onPressIn={() => { scale.value = withSpring(0.97, { damping: 20 }); }}
         onPressOut={() => { scale.value = withSpring(1, { damping: 20 }); }}
         activeOpacity={1}
@@ -275,6 +278,7 @@ const modalStyles = StyleSheet.create({
 
 function DashboardHeader({ totals, onOpenLimits, onOpenSettings, onOpenRecurring, topInset }: { totals: CategoryTotals; onOpenLimits: () => void; onOpenSettings: () => void; onOpenRecurring: () => void; topInset: number }) {
   const limits = useBudgetStore((s) => s.limits);
+  const balances = useBudgetStore((s) => s.balances);
   // Subscribe to currency so the header re-renders when the user changes country.
   useBudgetStore((s) => s.currency);
   const total = totals.needs + totals.wants + totals.savings;
@@ -311,6 +315,7 @@ function DashboardHeader({ totals, onOpenLimits, onOpenSettings, onOpenRecurring
             gradientColors={c.gradientColors}
             icon={c.icon}
             limit={limits[c.id]}
+            balance={balances[c.id]}
           />
         ))}
       </View>
@@ -358,6 +363,7 @@ export default function DashboardScreen() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [recurringOpen, setRecurringOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [editing, setEditing] = useState<Transaction | null>(null);
 
   const refreshCounter = useBudgetStore((s) => s.refreshCounter);
   const insets = useSafeAreaInsets();
@@ -392,6 +398,7 @@ export default function DashboardScreen() {
     fetchCategoryTotals().then(setTotals);
     fetchRecentTransactions(30).then(setTransactions);
     fetchLimits().then((l) => useBudgetStore.getState().setLimits(l));
+    fetchBalances().then((b) => useBudgetStore.getState().setBalances(b));
   }, [refreshCounter, dbReady]);
 
   const handleDelete = useCallback(async (id: number) => {
@@ -400,7 +407,7 @@ export default function DashboardScreen() {
   }, []);
 
   const renderItem = useCallback(
-    ({ item }: { item: Transaction }) => <TransactionRow item={item} onDelete={handleDelete} />,
+    ({ item }: { item: Transaction }) => <TransactionRow item={item} onDelete={handleDelete} onEdit={setEditing} />,
     [handleDelete],
   );
 
@@ -444,6 +451,11 @@ export default function DashboardScreen() {
       <RecurringModal
         visible={recurringOpen}
         onClose={() => setRecurringOpen(false)}
+      />
+
+      <EditTransactionModal
+        transaction={editing}
+        onClose={() => setEditing(null)}
       />
 
       <OnboardingOverlay

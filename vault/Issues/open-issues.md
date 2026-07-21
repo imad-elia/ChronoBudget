@@ -9,11 +9,12 @@ None.
 - **iOS Simulator keyboard log spam** — `[CoreHaptics] hapticpatternlibrary.plist ... no such file`, `[RemoteTextInput] RTIInputSystemClient ... valid sessionID`, `[TextInputUI] Result accumulator timeout`. Simulator-only system-framework noise on every keypress; never occurs on real devices. Not project code.
 
 - **Web: `props.pointerEvents is deprecated. Use style.pointerEvents`** — emitted by a dependency (React Navigation / Expo internals), not project code. Cosmetic; resolves when those libs update.
-- **Web: onboarding re-shows on every reload** — expected. Web uses an in-memory DB ([[web-inmemory-db]]), so the `onboarding_complete` flag resets each reload. Native persists correctly.
+- **Web: onboarding re-shows on every reload, starting balances "don't apply"** — expected, same root cause: web uses an in-memory DB ([[web-inmemory-db]]), so `onboarding_complete` and `category_balance` both reset on every reload. Native persists correctly. Verified 2026-07-21 that balances apply correctly within a session (no bug in the save path) — see [[2026-07-21-session]]. Caveat found while testing: two preview tabs open to the same origin at once can throw `createSyncAccessHandle ... Access Handle cannot be created` — an OPFS lock race between tabs, not an end-user scenario; close extra tabs if seen.
 
 ## Resolved (for reference)
 
 - **Onboarding Continue button invisible on iOS (country step)** — the button reused `styles.nextBtn` (`flex: 2`, meant for a horizontal row); in the vertical country card Yoga collapsed it to 0 height. `flexBasis: 'auto'` overrides fix web but not native (Yoga treats `auto` as unset). Fixed with a self-contained flex-free `continueBtn` style + footer-pinned card layout (scrollable body, `windowHeight - 80` cap). See [[2026-07-03-session]]. Fixed 2026-07-03.
+- **BentoCard "Remaining" balance line too faint to notice** — `styles.remaining` used `labelSmall` (10px) in `textMuted` (`#4A5168`), nearly invisible against the card's near-black gradient. Fixed by bumping to `bodyMedium` (14px, weight 600) and switching the positive-case color to `textSecondary` (#8B92A5); negative case keeps the existing neon-pink override. See [[2026-07-21-session]]. Fixed 2026-07-21.
 
 - **"no such column: category"** — stale browser SQLite DB from before schema v1. Fixed by schema versioning + v1 migration.
 - **"Unistyles runtime is not available" on Expo Go Android** — react-native-unistyles requires JSI. Fixed by removing the library and replacing with a static `theme` object + `StyleSheet.create`.

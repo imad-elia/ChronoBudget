@@ -6,12 +6,15 @@ import {
   Modal,
   ScrollView,
   StyleSheet,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
   useWindowDimensions,
 } from 'react-native';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import * as Localization from 'expo-localization';
-import { setSetting } from '../db/database';
-import { useBudgetStore, COUNTRIES } from '../store/useBudgetStore';
+import { setSetting, setBalance, fetchBalances } from '../db/database';
+import { useBudgetStore, COUNTRIES, type Category } from '../store/useBudgetStore';
 import { findCountry } from '../constants/countries';
 import { theme } from '../theme';
 import { t } from '../lib/i18n';
@@ -56,11 +59,21 @@ const STEPS: Step[] = [
   },
 ];
 
+const BALANCE_CATEGORIES: { id: Category; label: string; color: string }[] = [
+  { id: 'needs',   label: t('category.needs'),   color: '#00FF87' },
+  { id: 'wants',   label: t('category.wants'),   color: '#FF2D78' },
+  { id: 'savings', label: t('category.savings'), color: '#00BFFF' },
+];
+
 export function OnboardingOverlay({ visible, onDone }: Props) {
-  const [phase, setPhase] = useState<'country' | 'tour'>('country');
+  const [phase, setPhase] = useState<'country' | 'balance' | 'tour'>('country');
+  const [balanceDrafts, setBalanceDrafts] = useState<Record<Category, string>>({
+    needs: '', wants: '', savings: '',
+  });
   const [step, setStep] = useState(0);
   const storeCountry = useBudgetStore((s) => s.country);
   const setCountry = useBudgetStore((s) => s.setCountry);
+  const symbol = useBudgetStore((s) => s.symbol);
   const [picked, setPicked] = useState(storeCountry);
   const listRef = useRef<ScrollView>(null);
   const { height: windowHeight } = useWindowDimensions();
@@ -92,6 +105,15 @@ export function OnboardingOverlay({ visible, onDone }: Props) {
 
   async function handleContinueCountry() {
     await setCountry(picked);
+    setPhase('balance');
+  }
+
+  async function handleContinueBalance() {
+    for (const cat of ['needs', 'wants', 'savings'] as Category[]) {
+      const val = parseFloat(balanceDrafts[cat].replace(',', '.'));
+      if (!isNaN(val) && val > 0) await setBalance(cat, val);
+    }
+    useBudgetStore.getState().setBalances(await fetchBalances());
     setPhase('tour');
   }
 
@@ -177,6 +199,64 @@ export function OnboardingOverlay({ visible, onDone }: Props) {
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+    );
+  }
+
+  if (phase === 'balance') {
+    return (
+      <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.overlay}
+        >
+          <View style={StyleSheet.absoluteFill as any} />
+          <View style={[styles.card, styles.cardCenter, styles.cardCountry, { maxHeight: windowHeight - 80 }]}>
+            <ScrollView
+              style={countryStyles.scrollArea}
+              contentContainerStyle={countryStyles.scrollAreaContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.iconWrap}>
+                <Icon name="wallet-outline" size={32} color={theme.colors.neonGreen} />
+              </View>
+              <Text style={styles.title}>{t('onboarding.balanceTitle')}</Text>
+              <Text style={styles.body}>{t('onboarding.balanceSubtitle')}</Text>
+
+              {BALANCE_CATEGORIES.map((cat) => (
+                <View key={cat.id} style={balanceStyles.row}>
+                  <View style={[balanceStyles.dot, { backgroundColor: cat.color }]} />
+                  <Text style={[balanceStyles.label, { color: cat.color }]}>{cat.label}</Text>
+                  <View style={[balanceStyles.inputWrap, { borderColor: balanceDrafts[cat.id] ? `${cat.color}60` : theme.colors.border }]}>
+                    <Text style={[balanceStyles.prefix, { color: cat.color }]}>{symbol}</Text>
+                    <TextInput
+                      style={balanceStyles.input}
+                      placeholder={t('input.amountPlaceholder')}
+                      placeholderTextColor={theme.colors.textMuted}
+                      value={balanceDrafts[cat.id]}
+                      onChangeText={(v) => setBalanceDrafts((d) => ({ ...d, [cat.id]: v }))}
+                      keyboardType="decimal-pad"
+                      maxLength={12}
+                      selectionColor={cat.color}
+                    />
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={countryStyles.continueBtn}
+              onPress={handleContinueBalance}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.nextLabel}>{t('onboarding.continue')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setPhase('tour')} activeOpacity={0.6}>
+              <Text style={styles.skipLabel}>{t('onboarding.balanceSkip')}</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     );
   }
@@ -365,6 +445,29 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     textDecorationLine: 'underline',
   },
+});
+
+const balanceStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    width: '100%',
+  },
+  dot: { width: 8, height: 8, borderRadius: theme.radius.full },
+  label: { ...theme.typography.labelLarge, width: 64 },
+  inputWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    paddingHorizontal: theme.spacing.md,
+    height: 44,
+  },
+  prefix: { ...theme.typography.headingMedium, marginRight: theme.spacing.xs },
+  input: { flex: 1, ...theme.typography.bodyLarge, color: theme.colors.textPrimary },
 });
 
 const ROW_HEIGHT = 54; // row height (46) + marginBottom (theme.spacing.sm = 8)

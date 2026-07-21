@@ -12,7 +12,7 @@ import { advance } from '../lib/recurrence';
 // Tradeoff: web data resets on page reload.
 const DB_NAME = Platform.OS === 'web' ? ':memory:' : 'chronobudget.db';
 
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 // Open the connection AND run migrations as one atomic operation, then memoize
 // the resulting promise. Because every DB helper calls getDb(), this guarantees
@@ -98,6 +98,15 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
         next_run    INTEGER NOT NULL,
         active      INTEGER NOT NULL DEFAULT 1,
         created_at  INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+    `);
+  }
+
+  if (user_version < 6) {
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS category_balance (
+        category TEXT PRIMARY KEY CHECK(category IN ('needs', 'wants', 'savings')),
+        amount   REAL NOT NULL CHECK(amount >= 0)
       );
     `);
   }
@@ -200,6 +209,28 @@ export async function insertTransaction(
   );
 }
 
+export async function updateTransaction(
+  id: number,
+  fields: {
+    amount: number;
+    category: Category;
+    subcategory: string;
+    note: string;
+  },
+): Promise<void> {
+  const database = await getDb();
+  await database.runAsync(
+    `UPDATE transactions
+     SET amount = ?, category = ?, subcategory = ?, note = ?
+     WHERE id = ?`,
+    fields.amount,
+    fields.category,
+    fields.subcategory.trim(),
+    fields.note.trim(),
+    id,
+  );
+}
+
 export async function deleteTransaction(id: number): Promise<void> {
   const database = await getDb();
   await database.runAsync('DELETE FROM transactions WHERE id = ?', id);
@@ -276,6 +307,37 @@ export async function setLimit(category: Category, amount: number): Promise<void
   } else {
     await database.runAsync(
       `INSERT INTO budget_limits (category, amount) VALUES (?, ?)
+       ON CONFLICT(category) DO UPDATE SET amount = excluded.amount`,
+      category,
+      amount,
+    );
+  }
+}
+
+// ─── Starting balances ────────────────────────────────────────────────────────
+
+// Optional one-time starting money per category. A category with no row has no
+// balance set; the dashboard then shows spending only (no "Remaining" line).
+export async function fetchBalances(): Promise<Partial<Record<Category, number>>> {
+  const database = await getDb();
+  const rows = await database.getAllAsync<{ category: Category; amount: number }>(
+    'SELECT category, amount FROM category_balance',
+  );
+  const balances: Partial<Record<Category, number>> = {};
+  for (const row of rows) {
+    balances[row.category] = row.amount;
+  }
+  return balances;
+}
+
+// amount <= 0 removes the balance — same convention as setLimit.
+export async function setBalance(category: Category, amount: number): Promise<void> {
+  const database = await getDb();
+  if (amount <= 0) {
+    await database.runAsync('DELETE FROM category_balance WHERE category = ?', category);
+  } else {
+    await database.runAsync(
+      `INSERT INTO category_balance (category, amount) VALUES (?, ?)
        ON CONFLICT(category) DO UPDATE SET amount = excluded.amount`,
       category,
       amount,

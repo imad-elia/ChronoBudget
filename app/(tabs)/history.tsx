@@ -30,6 +30,7 @@ if (Platform.OS !== 'web') {
 }
 
 import { fetchTransactions, deleteTransaction } from '../../db/database';
+import { EditTransactionModal } from '../../components/EditTransactionModal';
 import { useBudgetStore, type Transaction, type Category } from '../../store/useBudgetStore';
 import { theme } from '../../theme';
 import { formatCurrency } from '../../lib/format';
@@ -78,7 +79,7 @@ function groupByDate(transactions: Transaction[]): Section[] {
 
 // ─── Transaction row ──────────────────────────────────────────────────────────
 
-function HistoryRow({ item, onDelete }: { item: Transaction; onDelete: (id: number) => void }) {
+function HistoryRow({ item, onDelete, onEdit }: { item: Transaction; onDelete: (id: number) => void; onEdit: (tx: Transaction) => void }) {
   const cfg = CATEGORY_CONFIG[item.category];
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -95,6 +96,7 @@ function HistoryRow({ item, onDelete }: { item: Transaction; onDelete: (id: numb
       <Animated.View style={animStyle}>
       <TouchableOpacity
         style={rowStyles.row}
+        onPress={() => onEdit(item)}
         onPressIn={() => { scale.value = withSpring(0.97, { damping: 20 }); }}
         onPressOut={() => { scale.value = withSpring(1, { damping: 20 }); }}
         activeOpacity={1}
@@ -155,6 +157,7 @@ export default function HistoryScreen() {
   const [filter, setFilter] = useState<FilterOption>('all');
   const [dbReady, setDbReady] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [editing, setEditing] = useState<Transaction | null>(null);
 
   const refreshCounter = useBudgetStore((s) => s.refreshCounter);
   const insets = useSafeAreaInsets();
@@ -275,7 +278,7 @@ export default function HistoryScreen() {
           <SectionList
             sections={sections}
             keyExtractor={(item) => String(item.id)}
-            renderItem={({ item }) => <HistoryRow item={item} onDelete={handleDelete} />}
+            renderItem={({ item }) => <HistoryRow item={item} onDelete={handleDelete} onEdit={setEditing} />}
             renderSectionHeader={({ section }) => (
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -289,6 +292,11 @@ export default function HistoryScreen() {
             stickySectionHeadersEnabled
           />
         )}
+
+        <EditTransactionModal
+          transaction={editing}
+          onClose={() => setEditing(null)}
+        />
       </View>
     </View>
   );

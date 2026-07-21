@@ -54,6 +54,10 @@ interface BudgetStore {
   limits: CategoryLimits;
   setLimits: (limits: CategoryLimits) => void;
 
+  // Optional one-time starting balances per category (Remaining = balance − spent)
+  balances: Partial<Record<Category, number>>;
+  setBalances: (balances: Partial<Record<Category, number>>) => void;
+
   // Smart-input learned keywords (cached from SQLite for synchronous detection)
   learnedKeywords: LearnedKeywords;
   loadLearnedKeywords: () => Promise<void>;
@@ -83,6 +87,9 @@ export const useBudgetStore = create<BudgetStore>((set) => ({
 
   limits: { needs: 0, wants: 0, savings: 0 },
   setLimits: (limits) => set({ limits }),
+
+  balances: {},
+  setBalances: (balances) => set({ balances }),
 
   learnedKeywords: {},
   loadLearnedKeywords: async () => {

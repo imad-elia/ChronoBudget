@@ -60,6 +60,12 @@ export const en = {
   'recurring.save': 'Save rule',
   'recurring.done': 'Done',
 
+  // Edit transaction
+  'edit.title': 'Edit transaction',
+  'edit.save': 'Save',
+  'edit.delete': 'Delete',
+  'edit.cancel': 'Cancel',
+
   // Onboarding
   'onboarding.countryTitle': 'Where are you?',
   'onboarding.countrySubtitle': 'We’ll set your currency and formatting. You can change it later in Settings.',
@@ -67,6 +73,14 @@ export const en = {
   'onboarding.currencyColumn': 'Currency',
   'onboarding.countryHint': 'Highlighted country applies if you tap Continue.',
   'onboarding.continue': 'Continue',
+  'onboarding.balanceTitle': 'Starting balances',
+  'onboarding.balanceSubtitle': 'Optionally set how much money you currently have per category. Leave blank to skip — you can set this later in Settings.',
+  'onboarding.balanceSkip': 'Skip for now',
+
+  // Starting balances (settings + dashboard)
+  'settings.balances': 'Starting balances',
+  'settings.balancesHint': 'How much money you have per category. Leave blank for none.',
+  'card.remaining': 'left',
 } as const;
 
 export type StringKey = keyof typeof en;

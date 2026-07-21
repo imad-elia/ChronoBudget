@@ -18,7 +18,7 @@ Offline-first mobile expense tracker built for OLED dark-mode phones. Users log 
 | Gradients | expo-linear-gradient |
 | Safe area | react-native-safe-area-context |
 
-## Current status (as of 2026-07-03)
+## Current status (as of 2026-07-21)
 
 - Dashboard screen: fully working
 - History screen: fully working (+ CSV export on native)
@@ -30,6 +30,8 @@ Offline-first mobile expense tracker built for OLED dark-mode phones. Users log 
 - Budget limits: implemented with progress bars in BentoCards; over-limit state shows the true % (uncapped) + a magenta OVER badge.
 - Recurring transactions: weekly/monthly/yearly rules (Recurring manager modal, autorenew header icon) that auto-post real transactions on app open, with month-end-clamped date math and missed-period catch-up. See [[recurring-transactions]].
 - Web build: functional. Web uses in-memory SQLite (dev preview); native uses persistent WAL. See [[web-inmemory-db]].
+- Edit transaction: tap any row (dashboard or history) to open a full edit modal (amount/category/subcategory/note + delete). See [[2026-07-21-session]].
+- Starting balances: optional per-category one-time balances (onboarding step + Settings); BentoCards show "left" (Remaining = balance − spent, magenta when negative). Schema v6 `category_balance` — see [[category-balance-schema]].
 - iOS build: verified working on iOS Simulator (iPhone 17 Pro, iOS 26.5) via macOS 13 VM (Intel, Xcode 26.5). `ios.bundleIdentifier` set in `app.json`. Onboarding country picker redesigned as a bounded table panel; native-only flex-collapse bug fixed. See [[2026-07-03-session]].
 
 ## Known issues
@@ -37,6 +39,8 @@ Offline-first mobile expense tracker built for OLED dark-mode phones. Users log 
 See [[open-issues]].
 
 ## Next steps
+
+- Month-scoped dashboard totals ("Total Spent" is currently all-time) — highest-value budgeting improvement.
 
 - Full UI translation: string structure is ready ([[localization]]); add locale files (e.g. `fr.ts`) when desired.
 - Recurring: optional custom start date (rules currently anchor to creation day). See [[recurring-transactions]].

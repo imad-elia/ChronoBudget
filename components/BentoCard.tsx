@@ -4,6 +4,7 @@ import type { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { theme } from '../theme';
 import { formatCurrency } from '../lib/format';
+import { t } from '../lib/i18n';
 
 interface BentoCardProps {
   title: string;
@@ -13,6 +14,7 @@ interface BentoCardProps {
   gradientColors: [string, string, string];
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   limit?: number;
+  balance?: number;
 }
 
 function progressColor(ratio: number, color: string): string {
@@ -22,8 +24,11 @@ function progressColor(ratio: number, color: string): string {
   return color;
 }
 
-export function BentoCard({ title, amount, color, glowColor, gradientColors, icon, limit }: BentoCardProps) {
+export function BentoCard({ title, amount, color, glowColor, gradientColors, icon, limit, balance }: BentoCardProps) {
   const formatted = formatCurrency(amount);
+
+  const hasBalance = !!balance && balance > 0;
+  const remaining = hasBalance ? balance - amount : 0;
 
   const hasLimit = !!limit && limit > 0;
   const rawRatio = hasLimit ? amount / limit : 0;
@@ -55,6 +60,15 @@ export function BentoCard({ title, amount, color, glowColor, gradientColors, ico
         <Text style={styles.amount} numberOfLines={1} adjustsFontSizeToFit>
           {formatted}
         </Text>
+
+        {hasBalance && (
+          <Text
+            style={[styles.remaining, { color: remaining < 0 ? '#FF2D78' : theme.colors.textSecondary }]}
+            numberOfLines={1}
+          >
+            {formatCurrency(remaining)} {t('card.remaining')}
+          </Text>
+        )}
 
         {hasLimit ? (
           <View style={styles.progressSection}>
@@ -119,6 +133,10 @@ const styles = StyleSheet.create({
     ...theme.typography.displayMedium,
     color: theme.colors.textPrimary,
     marginTop: theme.spacing.xs,
+  },
+  remaining: {
+    ...theme.typography.bodyMedium,
+    fontWeight: '600',
   },
   accentLine: {
     height: 2,
