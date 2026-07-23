@@ -23,7 +23,7 @@ const SCHEMA_VERSION = 6;
 // disk and hid the race; the in-memory web DB starts empty and exposed it.
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
-async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
+export async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
   const database = await SQLite.openDatabaseAsync(DB_NAME);
 
   // WAL needs a shared-memory (-shm) sidecar that only makes sense for an on-disk

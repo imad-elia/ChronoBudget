@@ -159,6 +159,7 @@ export function EditTransactionModal({ transaction, onClose }: Props) {
             <View style={[styles.inputWrap, { borderColor: amount ? `${activeColor}60` : theme.colors.border }]}>
               <Text style={[styles.prefix, { color: activeColor }]}>{symbol}</Text>
               <TextInput
+                testID="edit-amount-input"
                 style={styles.amountInput}
                 placeholder={t('input.amountPlaceholder')}
                 placeholderTextColor={theme.colors.textMuted}

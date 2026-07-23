@@ -39,6 +39,27 @@ describe('schema migration', () => {
   });
 });
 
+describe('migration idempotency', () => {
+  it('re-running openAndMigrate against an already-migrated DB does not error or wipe data', async () => {
+    await database.getDb();
+    await database.insertTransaction(20, 'needs', 'Groceries', '');
+    await database.setSetting('country', 'US');
+
+    // Simulates the app relaunching: openAndMigrate() opens the same named DB
+    // (mocked to reuse the same underlying data, like a real on-disk file) and
+    // re-runs the full migration ladder against it.
+    await expect(database.openAndMigrate()).resolves.toBeDefined();
+
+    const conn = await database.getDb();
+    const [{ user_version }] = await conn.getAllAsync<{ user_version: number }>('PRAGMA user_version');
+    expect(user_version).toBe(6);
+
+    const totals = await database.fetchCategoryTotals();
+    expect(totals.needs).toBe(20);
+    expect(await database.getSetting('country')).toBe('US');
+  });
+});
+
 describe('app settings', () => {
   it('round-trips a setting and upserts on repeated writes', async () => {
     expect(await database.getSetting('country')).toBeNull();

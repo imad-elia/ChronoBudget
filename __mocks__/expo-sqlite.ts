@@ -56,7 +56,20 @@ function flattenParams(params: unknown[]): unknown[] {
   return params;
 }
 
-export async function openDatabaseAsync(_name: string): Promise<FakeSQLiteDatabase> {
+// Real SQLite reuses the same on-disk file across repeated opens of the same
+// name (that's how the app's actual migration-idempotency guarantee gets
+// exercised on relaunch). Mimic that here instead of handing out a fresh,
+// empty database per call — memoize by name so a second open sees the first
+// open's data. jest.resetModules() (used per-test in database.test.ts) clears
+// this map between tests, so there's no cross-test leakage.
+const databases = new Map<string, Database>();
+
+export async function openDatabaseAsync(name: string): Promise<FakeSQLiteDatabase> {
   const SQL = await getSQL();
-  return new FakeSQLiteDatabase(new SQL.Database());
+  let db = databases.get(name);
+  if (!db) {
+    db = new SQL.Database();
+    databases.set(name, db);
+  }
+  return new FakeSQLiteDatabase(db);
 }
