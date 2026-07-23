@@ -33,6 +33,7 @@ Offline-first mobile expense tracker built for OLED dark-mode phones. Users log 
 - Edit transaction: tap any row (dashboard or history) to open a full edit modal (amount/category/subcategory/note + delete). See [[2026-07-21-session]].
 - Starting balances: optional per-category one-time balances (onboarding step + Settings); BentoCards show "left" (Remaining = balance − spent, magenta when negative). Schema v6 `category_balance` — see [[category-balance-schema]].
 - iOS build: verified working on iOS Simulator (iPhone 17 Pro, iOS 26.5) via macOS 13 VM (Intel, Xcode 26.5). `ios.bundleIdentifier` set in `app.json`. Onboarding country picker redesigned as a bounded table panel; native-only flex-collapse bug fixed. See [[2026-07-03-session]].
+- Automated tests: `jest-expo` + `@testing-library/react-native`, run via `npm test` (50 tests, all pure-logic/component — no DB coverage yet). Covers `lib/detectCategory.ts`, `lib/recurrence.ts`, `lib/format.ts`, `store/useBudgetStore.ts`, `components/BentoCard.tsx`. See [[testing-strategy]].
 
 ## Known issues
 
@@ -47,9 +48,11 @@ See [[open-issues]].
 - Smart input: fuzzy/stemming matching (deferred, see [[smart-input-classifier]] Future work); non-English keyword dictionaries once other locale UI strings ship.
 - Possible future work: account-aware budgeting, CSV *import*.
 - Android payment-notification auto-entry was evaluated (2026-07-21) and shelved: requires a native notification-listener service (no Expo Go support, needs EAS dev build), manual per-user permission grant, Play Store declared-use justification, and fragile per-bank text parsing. Not started.
+- Testing: `db/database.ts` (schema migrations, CRUD, `processRecurring`) has no automated coverage — `expo-sqlite`'s native module isn't available under jest-expo's default test environment. See [[testing-strategy]] Known gap.
 
 ## Related notes
 
 - [[Overview]] — architecture
 - [[Components]] — file-by-file breakdown
 - [[DataFlow]] — how data moves
+- [[testing-strategy]] — automated test suite setup
