@@ -199,6 +199,7 @@ export function RecurringModal({ visible, onClose }: { visible: boolean; onClose
                         </View>
                         <Text style={[styles.ruleAmount, { color: c }]}>{formatCurrency(rule.amount)}</Text>
                         <TouchableOpacity
+                          testID={`delete-recurring-${rule.id}`}
                           onPress={() => handleDelete(rule.id)}
                           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                           style={styles.trashBtn}

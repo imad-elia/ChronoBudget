@@ -237,7 +237,7 @@ export function EditTransactionModal({ transaction, onClose }: Props) {
             )}
 
             <View style={styles.actions}>
-              <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+              <TouchableOpacity testID="delete-transaction" style={styles.deleteBtn} onPress={handleDelete} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
                 <Icon name="trash-can-outline" size={18} color="#FF2D78" />
               </TouchableOpacity>
               <TouchableOpacity style={styles.cancel} onPress={onClose} activeOpacity={0.7}>

@@ -135,6 +135,7 @@ export function KeywordsModal({ visible, onClose }: Props) {
                     <Text style={[styles.rowSub, { color }]}>{CATEGORY_LABEL[entry.category]} · {entry.subcategory}</Text>
                   </View>
                   <TouchableOpacity
+                    testID={`delete-keyword-${key}`}
                     onPress={() => handleDelete(key)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
