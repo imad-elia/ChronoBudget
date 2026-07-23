@@ -2,7 +2,6 @@ import { useEffect, useCallback, useState } from 'react';
 import {
   View,
   Text,
-  FlatList,
   TouchableOpacity,
   useWindowDimensions,
   Modal,
@@ -187,7 +186,7 @@ function LimitsModal({ visible, onClose, onSave }: { visible: boolean; onClose: 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={modalStyles.overlay}
       >
-        <TouchableOpacity style={StyleSheet.absoluteFillObject as any} activeOpacity={1} onPress={onClose} />
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
         <View style={modalStyles.sheet}>
           <View style={modalStyles.handle} />
           <Text style={modalStyles.title}>BUDGET LIMITS</Text>
@@ -418,7 +417,7 @@ export default function DashboardScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
-        <FlatList
+        <Animated.FlatList
           data={transactions}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderItem}

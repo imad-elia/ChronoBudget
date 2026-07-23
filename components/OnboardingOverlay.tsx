@@ -136,7 +136,7 @@ export function OnboardingOverlay({ visible, onDone }: Props) {
     return (
       <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.overlay}>
-          <View style={StyleSheet.absoluteFillObject as any} />
+          <View style={StyleSheet.absoluteFill} />
           <View style={[styles.card, styles.cardCenter, styles.cardCountry, { maxHeight: windowHeight - 80 }]}>
             {/* Everything except the Continue button lives in this scrollable
                 region, so the button is always visible no matter how short
@@ -265,7 +265,7 @@ export function OnboardingOverlay({ visible, onDone }: Props) {
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
       <View style={styles.overlay}>
         {/* Backdrop */}
-        <View style={StyleSheet.absoluteFillObject as any} />
+        <View style={StyleSheet.absoluteFill} />
 
         {/* Card — anchored near bottom for steps 1-2, centered otherwise */}
         <View

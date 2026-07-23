@@ -165,7 +165,7 @@ export function RecurringModal({ visible, onClose }: { visible: boolean; onClose
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.overlay}
       >
-        <TouchableOpacity style={StyleSheet.absoluteFillObject as any} activeOpacity={1} onPress={handleClose} />
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={handleClose} />
         <View style={styles.sheet}>
           <View style={styles.handle} />
           <Text style={styles.title}>{t('recurring.title').toUpperCase()}</Text>
