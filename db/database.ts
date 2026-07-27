@@ -381,9 +381,13 @@ export async function insertRecurring(rule: {
   subcategory: string;
   note: string;
   frequency: Frequency;
+  // Optional custom anchor date; defaults to now so the first occurrence
+  // posts on the next processRecurring(). A past startDate is allowed and
+  // simply catches up via processRecurring()'s existing due-occurrence loop.
+  startDate?: number;
 }): Promise<void> {
   const database = await getDb();
-  // next_run = now so the first occurrence posts on the next processRecurring().
+  const nextRun = rule.startDate ?? Date.now();
   await database.runAsync(
     `INSERT INTO recurring (amount, category, subcategory, note, frequency, next_run, created_at)
      VALUES (?, ?, ?, ?, ?, ?, unixepoch())`,
@@ -392,7 +396,7 @@ export async function insertRecurring(rule: {
     rule.subcategory.trim(),
     rule.note.trim(),
     rule.frequency,
-    Date.now(),
+    nextRun,
   );
 }
 

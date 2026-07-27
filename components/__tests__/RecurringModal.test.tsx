@@ -84,6 +84,34 @@ describe('RecurringModal — add flow', () => {
     // Back on the list view after a successful save.
     await waitFor(() => expect(screen.getByText('Add recurring')).toBeTruthy());
   });
+
+  it('shows the start-date field defaulting to Today when adding a new rule', async () => {
+    await render(<RecurringModal visible onClose={onClose} />);
+    await fireEvent.press(screen.getByText('Add recurring'));
+
+    expect(screen.getByText('Start date')).toBeTruthy();
+    expect(screen.getByTestId('date-picker-toggle')).toBeTruthy();
+    expect(screen.getByText('Today')).toBeTruthy();
+  });
+
+  it('includes the picked startDate when a day is selected in the picker', async () => {
+    await render(<RecurringModal visible onClose={onClose} />);
+    await fireEvent.press(screen.getByText('Add recurring'));
+    await fireEvent.changeText(screen.getByPlaceholderText('0.00'), '20');
+    await fireEvent.press(screen.getByText('Groceries'));
+
+    await fireEvent.press(screen.getByTestId('date-picker-toggle'));
+    await fireEvent.press(screen.getByTestId('date-picker-day-15'));
+    await fireEvent.press(screen.getByText('Save rule'));
+
+    await waitFor(() => {
+      expect(db.insertRecurring).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: 20, startDate: expect.any(Number) }),
+      );
+    });
+    const call = (db.insertRecurring as jest.Mock).mock.calls[0][0];
+    expect(new Date(call.startDate).getDate()).toBe(15);
+  });
 });
 
 describe('RecurringModal — edit flow', () => {
@@ -107,6 +135,15 @@ describe('RecurringModal — edit flow', () => {
       });
     });
     expect(db.insertRecurring).not.toHaveBeenCalled();
+  });
+
+  it('hides the start-date field when editing an existing rule', async () => {
+    useBudgetStore.setState({ recurring: [seedRule] });
+    await render(<RecurringModal visible onClose={onClose} />);
+
+    await fireEvent.press(screen.getByText('Rent'));
+    expect(screen.queryByText('Start date')).toBeNull();
+    expect(screen.queryByTestId('date-picker-toggle')).toBeNull();
   });
 });
 

@@ -11,6 +11,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import { DatePickerField } from './DatePickerField';
 import { useBudgetStore } from '../store/useBudgetStore';
 import type { Category, Frequency, RecurringRule } from '../store/useBudgetStore';
 import { theme } from '../theme';
@@ -65,6 +66,7 @@ export function RecurringModal({ visible, onClose }: { visible: boolean; onClose
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [note, setNote] = useState('');
   const [frequency, setFrequency] = useState<Frequency>('monthly');
+  const [customStartDate, setCustomStartDate] = useState<number | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -80,6 +82,7 @@ export function RecurringModal({ visible, onClose }: { visible: boolean; onClose
     setShowCustomInput(false);
     setNote('');
     setFrequency('monthly');
+    setCustomStartDate(undefined);
     setError(null);
   }
 
@@ -97,6 +100,7 @@ export function RecurringModal({ visible, onClose }: { visible: boolean; onClose
     setShowCustomInput(false);
     setNote(rule.note);
     setFrequency(rule.frequency);
+    setCustomStartDate(undefined);
     setError(null);
     setView('form');
   }
@@ -132,7 +136,10 @@ export function RecurringModal({ visible, onClose }: { visible: boolean; onClose
       if (editingId != null) {
         await updateRecurring(editingId, fields);
       } else {
-        await insertRecurring(fields);
+        await insertRecurring({
+          ...fields,
+          ...(customStartDate != null ? { startDate: customStartDate } : {}),
+        });
       }
       // Post any now-due occurrences (a new rule's first charge posts immediately)
       // and refresh dashboard/history/trends.
@@ -329,6 +336,14 @@ export function RecurringModal({ visible, onClose }: { visible: boolean; onClose
                   );
                 })}
               </View>
+
+              {/* Start date (create-only) */}
+              {editingId == null && (
+                <>
+                  <Text style={styles.fieldLabel}>{t('recurring.startDate')}</Text>
+                  <DatePickerField value={customStartDate} onChange={setCustomStartDate} activeColor={activeColor} />
+                </>
+              )}
 
               {error && (
                 <View style={styles.errorRow}>

@@ -184,6 +184,68 @@ describe('processRecurring (catch-up posting)', () => {
   });
 });
 
+describe('insertRecurring (custom start date)', () => {
+  const NOW = new Date(2026, 6, 1, 0, 0, 0).getTime(); // 2026-07-01
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('defaults next_run to ~now when startDate is omitted', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(NOW);
+
+    await database.insertRecurring({
+      amount: 10,
+      category: 'needs',
+      subcategory: 'Rent',
+      note: '',
+      frequency: 'monthly',
+    });
+    const [rule] = await database.fetchRecurring();
+    expect(rule.nextRun).toBe(NOW);
+  });
+
+  it('seeds next_run from a future startDate and does not post it early', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(NOW);
+    const futureStart = new Date(2026, 7, 15, 12, 0, 0).getTime(); // 2026-08-15
+
+    await database.insertRecurring({
+      amount: 30,
+      category: 'wants',
+      subcategory: 'Streaming',
+      note: '',
+      frequency: 'monthly',
+      startDate: futureStart,
+    });
+    const [rule] = await database.fetchRecurring();
+    expect(rule.nextRun).toBe(futureStart);
+
+    const inserted = await database.processRecurring();
+    expect(inserted).toBe(0);
+  });
+
+  it('seeds next_run from a past startDate and immediately catches up via processRecurring', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(NOW);
+    const pastStart = new Date(2026, 2, 15, 12, 0, 0).getTime(); // 2026-03-15
+
+    await database.insertRecurring({
+      amount: 40,
+      category: 'savings',
+      subcategory: 'Investing',
+      note: '',
+      frequency: 'monthly',
+      startDate: pastStart,
+    });
+
+    const inserted = await database.processRecurring();
+    // Occurrences at Mar 15, Apr 15, May 15, Jun 15 are all <= "now" (Jul 1).
+    expect(inserted).toBe(4);
+
+    const totals = await database.fetchCategoryTotals(null);
+    expect(totals.savings).toBe(40 * 4);
+  });
+});
+
 describe('fetchMonthlyTotals', () => {
   it('buckets totals by month and fills zero for months with no activity', async () => {
     const now = new Date();

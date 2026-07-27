@@ -59,6 +59,8 @@ export const en = {
   'recurring.notePlaceholder': 'Add a note (optional)',
   'recurring.save': 'Save rule',
   'recurring.done': 'Done',
+  'recurring.startDate': 'Start date',
+  'recurring.startDateDefault': 'Today',
 
   // Edit transaction
   'edit.title': 'Edit transaction',

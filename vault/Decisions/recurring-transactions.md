@@ -39,8 +39,16 @@ CREATE TABLE recurring (
 
 - **No anchor column.** The day-of-month / weekday / month-day is implicit in
   `next_run` and preserved by always advancing from the previous `next_run`. Rules
-  anchor to the creation moment (`next_run = Date.now()` on insert, so the first
-  occurrence posts immediately). A custom start date is a future enhancement.
+  default to anchoring at the creation moment (`next_run = Date.now()` on insert if
+  no `startDate` is given), so the first occurrence posts immediately.
+- **Optional custom start date (added 2026-07-27).** `insertRecurring()` accepts an
+  optional `startDate` that seeds `next_run` directly instead of `Date.now()` — no
+  schema change needed, since `next_run` already doubles as the anchor. Create-only
+  (not editable on existing rules). UI: `components/DatePickerField.tsx`, a
+  hand-rolled single-month grid (no date-picker library — none existed in the
+  codebase, and `@react-native-community/datetimepicker` has no web support). Past
+  start dates are allowed and immediately catch up via the existing `processRecurring`
+  loop, exactly like today's default behavior — no special-casing.
 - **`lib/recurrence.ts`** (pure, RN-free, like [[smart-input-classifier]]'s
   detectCategory): `advance(ts, freq)` — weekly `+7d`; monthly/yearly keep the same
   day **clamped to the target month's length** (Jan 31 → Feb 28/29; Feb 29 → Feb 28

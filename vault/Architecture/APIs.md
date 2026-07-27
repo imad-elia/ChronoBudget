@@ -120,7 +120,7 @@ Migration strategy: incremental `if (user_version < N)` blocks in `initDb()`. v1
 | `fetchLearnedKeywords()` | Load all `keyword_learn` rows into a `Record<keyword, {category, subcategory}>` for the smart-input cache. |
 | `learnKeyword(keyword, category, subcategory)` | Upsert a learned keyword mapping (increments `count`). See [[smart-input-classifier]]. |
 | `fetchRecurring()` | All recurring rules (`next_run` aliased to `nextRun`), ordered by next due. |
-| `insertRecurring(rule)` | Create a rule with `next_run = now` (first occurrence posts on next `processRecurring`). |
+| `insertRecurring(rule)` | Create a rule; `next_run` seeds from `rule.startDate` if given, else `now` (first occurrence posts on next `processRecurring`, immediately catching up if `startDate` is in the past). |
 | `updateRecurring(id, fields)` / `deleteRecurring(id)` | Edit / remove a rule. |
 | `processRecurring()` | Catch-up pass: post one transaction per due/missed occurrence, advance `next_run` past now; returns count inserted. See [[recurring-transactions]]. |
 
