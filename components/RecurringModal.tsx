@@ -31,11 +31,11 @@ const CATEGORIES: { id: Category; color: string }[] = [
   { id: 'savings', color: '#00BFFF' },
 ];
 
-const CATEGORY_LABEL: Record<Category, string> = {
-  needs: t('category.needs'),
-  wants: t('category.wants'),
-  savings: t('category.savings'),
-};
+const CATEGORY_LABEL_KEY = {
+  needs: 'category.needs',
+  wants: 'category.wants',
+  savings: 'category.savings',
+} as const;
 
 const FREQUENCIES: { id: Frequency; labelKey: 'recurring.weekly' | 'recurring.monthly' | 'recurring.yearly' }[] = [
   { id: 'weekly',  labelKey: 'recurring.weekly' },
@@ -193,7 +193,7 @@ export function RecurringModal({ visible, onClose }: { visible: boolean; onClose
                 ) : (
                   rules.map((rule) => {
                     const c = colorFor(rule.category);
-                    const label = (rule.subcategory && subcategoryLabel(rule.subcategory)) || rule.note || CATEGORY_LABEL[rule.category];
+                    const label = (rule.subcategory && subcategoryLabel(rule.subcategory)) || rule.note || t(CATEGORY_LABEL_KEY[rule.category]);
                     return (
                       <TouchableOpacity
                         key={rule.id}
@@ -242,7 +242,7 @@ export function RecurringModal({ visible, onClose }: { visible: boolean; onClose
                       activeOpacity={0.7}
                     >
                       <Text style={[styles.categoryLabel, { color: active ? cat.color : theme.colors.textMuted }]}>
-                        {CATEGORY_LABEL[cat.id]}
+                        {t(CATEGORY_LABEL_KEY[cat.id])}
                       </Text>
                     </TouchableOpacity>
                   );

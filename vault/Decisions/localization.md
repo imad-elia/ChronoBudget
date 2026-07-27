@@ -123,6 +123,26 @@ still what the EN/FR keyword dictionaries in `lib/detectCategory.ts` target —
 so this was purely a rendering fix, no schema/detection changes. See
 [[open-issues]] for the full list of call sites and verification notes.
 
+## More frozen-t()-at-import-time instances + tab bar (2026-07-27, part 5)
+
+Follow-up to the "Frozen module-scope `t()` calls" fix above: the same bug
+(computing a `CATEGORY_LABEL` object once at module load instead of at render
+time) was still present in **two files that fix missed**:
+`EditTransactionModal.tsx` and `RecurringModal.tsx`. Both switched to the
+`CATEGORY_LABEL_KEY` map + `t(CATEGORY_LABEL_KEY[id])`-at-render pattern, same
+as `ExpenseInput.tsx`.
+
+Also fixed: the tab bar (`app/(tabs)/_layout.tsx`) had never been localized
+at all — `title: 'Dashboard'` etc. were literal strings with zero `t()`
+involvement. Now uses `t('tabs.dashboard')` (new key) and the existing
+`history.title`/`trends.title` keys, with the layout component subscribed to
+`useBudgetStore((s) => s.symbol)` purely to force a re-render on language
+change (same forcing pattern as `KeywordsModal.tsx`).
+
+This round was verified via `tsc --noEmit` + full test suite only, at the
+user's explicit request (no live browser check) — see [[open-issues]] for
+what to manually verify.
+
 ## Related notes
 
 - [[smart-input-classifier]] — shipped in the same session; French keyword

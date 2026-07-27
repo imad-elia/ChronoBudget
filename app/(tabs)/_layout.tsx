@@ -1,8 +1,14 @@
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import { useBudgetStore } from '../../store/useBudgetStore';
+import { t } from '../../lib/i18n';
 
 export default function TabLayout() {
+  // Subscribed purely to force a re-render when the language changes, since
+  // t() reads a module-level variable rather than a Zustand field.
+  useBudgetStore((s) => s.symbol);
+
   return (
     <Tabs
       screenOptions={{
@@ -28,7 +34,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
+          title: t('tabs.dashboard'),
           tabBarIcon: ({ color, size }) => (
             <Icon name="view-dashboard-outline" size={size} color={color} />
           ),
@@ -37,7 +43,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="history"
         options={{
-          title: 'History',
+          title: t('history.title'),
           tabBarIcon: ({ color, size }) => (
             <Icon name="history" size={size} color={color} />
           ),
@@ -46,7 +52,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="trends"
         options={{
-          title: 'Trends',
+          title: t('trends.title'),
           tabBarIcon: ({ color, size }) => (
             <Icon name="chart-bar" size={size} color={color} />
           ),

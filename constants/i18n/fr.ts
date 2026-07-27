@@ -3,7 +3,8 @@ import type { StringKey } from './en';
 
 export const fr: Record<StringKey, string> = {
   // Dashboard
-  'dashboard.totalSpent': 'Dépensé ce mois-ci',
+  'dashboard.totalSpent': 'Dépense ce mois',
+  'tabs.dashboard': 'Tableau de bord',
   'dashboard.settings': 'Paramètres',
   'dashboard.limits': 'Limites',
 

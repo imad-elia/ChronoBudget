@@ -24,11 +24,11 @@ const CATEGORIES: { id: Category; color: string }[] = [
   { id: 'savings', color: '#00BFFF' },
 ];
 
-const CATEGORY_LABEL: Record<Category, string> = {
-  needs: t('category.needs'),
-  wants: t('category.wants'),
-  savings: t('category.savings'),
-};
+const CATEGORY_LABEL_KEY = {
+  needs: 'category.needs',
+  wants: 'category.wants',
+  savings: 'category.savings',
+} as const;
 
 function colorFor(cat: Category): string {
   return CATEGORIES.find((c) => c.id === cat)!.color;
@@ -157,7 +157,7 @@ export function EditTransactionModal({ transaction, onClose }: Props) {
                     activeOpacity={0.7}
                   >
                     <Text style={[styles.categoryLabel, { color: active ? cat.color : theme.colors.textMuted }]}>
-                      {CATEGORY_LABEL[cat.id]}
+                      {t(CATEGORY_LABEL_KEY[cat.id])}
                     </Text>
                   </TouchableOpacity>
                 );

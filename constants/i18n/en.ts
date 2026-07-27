@@ -4,6 +4,7 @@
 export const en = {
   // Dashboard
   'dashboard.totalSpent': 'Spent This Month',
+  'tabs.dashboard': 'Dashboard',
   'dashboard.settings': 'Settings',
   'dashboard.limits': 'Limits',
 
