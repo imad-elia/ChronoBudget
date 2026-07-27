@@ -47,6 +47,12 @@ describe('simple setters', () => {
     useBudgetStore.getState().setBalances(balances);
     expect(useBudgetStore.getState().balances).toEqual(balances);
   });
+
+  it('setGoals replaces the goals', () => {
+    const goals = [{ id: 1, name: 'Car repair fund', targetAmount: 2000, currentAmount: 500 }];
+    useBudgetStore.getState().setGoals(goals);
+    expect(useBudgetStore.getState().goals).toEqual(goals);
+  });
 });
 
 describe('loadLearnedKeywords', () => {

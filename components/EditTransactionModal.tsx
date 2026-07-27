@@ -42,6 +42,7 @@ interface Props {
 export function EditTransactionModal({ transaction, onClose }: Props) {
   const symbol = useBudgetStore((s) => s.symbol);
   const accounts = useBudgetStore((s) => s.accounts);
+  const goals = useBudgetStore((s) => s.goals);
 
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Category>('needs');
@@ -50,6 +51,7 @@ export function EditTransactionModal({ transaction, onClose }: Props) {
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [note, setNote] = useState('');
   const [accountId, setAccountId] = useState<number | null>(null);
+  const [goalId, setGoalId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -74,6 +76,7 @@ export function EditTransactionModal({ transaction, onClose }: Props) {
     }
     setNote(transaction.note);
     setAccountId(transaction.accountId ?? null);
+    setGoalId(transaction.goalId ?? null);
     setError(null);
   }, [transaction]);
 
@@ -82,6 +85,7 @@ export function EditTransactionModal({ transaction, onClose }: Props) {
     setSubcategory('');
     setCustomSubcategory('');
     setShowCustomInput(false);
+    if (cat !== 'savings') setGoalId(null);
   }
 
   function selectSubcategory(s: string) {
@@ -111,6 +115,7 @@ export function EditTransactionModal({ transaction, onClose }: Props) {
         subcategory: resolvedSub,
         note,
         accountId,
+        goalId: category === 'savings' ? goalId : null,
       });
       useBudgetStore.getState().triggerRefresh();
       onClose();
@@ -246,6 +251,38 @@ export function EditTransactionModal({ transaction, onClose }: Props) {
                     >
                       <Icon name="bank-outline" size={11} color={active ? activeColor : theme.colors.textMuted} />
                       <Text style={[styles.subLabel, { color: active ? activeColor : theme.colors.textMuted }]}>{a.name}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
+
+            {/* Goal chips (Savings category only, hidden when no goals exist) */}
+            {category === 'savings' && goals.length > 0 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.subRow}
+                keyboardShouldPersistTaps="handled"
+              >
+                <TouchableOpacity
+                  style={[styles.subChip, goalId === null && { borderColor: activeColor, backgroundColor: `${activeColor}18` }]}
+                  onPress={() => setGoalId(null)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.subLabel, { color: goalId === null ? activeColor : theme.colors.textMuted }]}>{t('input.noGoal')}</Text>
+                </TouchableOpacity>
+                {goals.map((g) => {
+                  const active = goalId === g.id;
+                  return (
+                    <TouchableOpacity
+                      key={g.id}
+                      style={[styles.subChip, active && { borderColor: activeColor, backgroundColor: `${activeColor}18` }]}
+                      onPress={() => setGoalId(g.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Icon name="piggy-bank-outline" size={11} color={active ? activeColor : theme.colors.textMuted} />
+                      <Text style={[styles.subLabel, { color: active ? activeColor : theme.colors.textMuted }]}>{g.name}</Text>
                     </TouchableOpacity>
                   );
                 })}

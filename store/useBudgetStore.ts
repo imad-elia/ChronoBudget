@@ -45,12 +45,20 @@ interface Transaction {
   note: string;
   timestamp: number;
   accountId?: number | null;
+  goalId?: number | null;
 }
 
 interface Account {
   id: number;
   name: string;
   balance: number;
+}
+
+interface Goal {
+  id: number;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
 }
 
 interface Transfer {
@@ -100,6 +108,10 @@ interface BudgetStore {
   transfers: Transfer[];
   setTransfers: (transfers: Transfer[]) => void;
 
+  // Savings goals (sinking funds within the Savings category)
+  goals: Goal[];
+  setGoals: (goals: Goal[]) => void;
+
   // Localization (currency + formatting)
   country: string;
   locale: string;
@@ -145,6 +157,9 @@ export const useBudgetStore = create<BudgetStore>((set) => ({
   setAccounts: (accounts) => set({ accounts }),
   transfers: [],
   setTransfers: (transfers) => set({ transfers }),
+
+  goals: [],
+  setGoals: (goals) => set({ goals }),
 
   country: DEFAULT_COUNTRY.code,
   locale: DEFAULT_COUNTRY.locale,
@@ -212,4 +227,4 @@ interface MonthlyTotal {
   savings: number;
 }
 
-export type { Transaction, Category, CategoryTotals, CategoryLimits, MonthlyTotal, RecurringRule, Frequency, Account, Transfer };
+export type { Transaction, Category, CategoryTotals, CategoryLimits, MonthlyTotal, RecurringRule, Frequency, Account, Transfer, Goal };

@@ -5,6 +5,7 @@ import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { theme } from '../theme';
 import { formatCurrency } from '../lib/format';
 import { t } from '../lib/i18n';
+import { ProgressBar } from './ProgressBar';
 
 interface BentoCardProps {
   title: string;
@@ -17,13 +18,6 @@ interface BentoCardProps {
   balance?: number;
 }
 
-function progressColor(ratio: number, color: string): string {
-  if (ratio >= 1) return '#FF2D78';
-  if (ratio >= 0.9) return '#FF6B35';
-  if (ratio >= 0.7) return '#FFD166';
-  return color;
-}
-
 export function BentoCard({ title, amount, color, glowColor, gradientColors, icon, limit, balance }: BentoCardProps) {
   const formatted = formatCurrency(amount);
 
@@ -32,10 +26,6 @@ export function BentoCard({ title, amount, color, glowColor, gradientColors, ico
 
   const hasLimit = !!limit && limit > 0;
   const rawRatio = hasLimit ? amount / limit : 0;
-  const fillWidth = Math.min(rawRatio, 1);
-  const barColor = hasLimit ? progressColor(rawRatio, color) : color;
-  const pct = Math.round(rawRatio * 100);
-  const over = hasLimit && rawRatio > 1;
 
   return (
     <View style={[
@@ -71,18 +61,7 @@ export function BentoCard({ title, amount, color, glowColor, gradientColors, ico
         )}
 
         {hasLimit ? (
-          <View style={styles.progressSection}>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${Math.round(fillWidth * 100)}%` as `${number}%`, backgroundColor: barColor }]} />
-            </View>
-            {over && (
-              <View style={styles.overBadge}>
-                <Icon name="alert-circle" size={11} color="#FF2D78" />
-                <Text style={styles.overBadgeText}>{t('card.over')}</Text>
-              </View>
-            )}
-            <Text style={[styles.progressLabel, { color: barColor }]}>{pct}%</Text>
-          </View>
+          <ProgressBar ratio={rawRatio} color={color} overLabel={t('card.over')} />
         ) : (
           <View style={[styles.accentLine, { backgroundColor: color }]} />
         )}
@@ -144,41 +123,5 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.full,
     marginTop: theme.spacing.xs,
     opacity: 0.7,
-  },
-  progressSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.xs,
-    marginTop: theme.spacing.xs,
-  },
-  progressTrack: {
-    flex: 1,
-    height: 3,
-    borderRadius: theme.radius.full,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: theme.radius.full,
-  },
-  progressLabel: {
-    ...theme.typography.labelSmall,
-    minWidth: 30,
-    textAlign: 'right',
-  },
-  overBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: theme.radius.full,
-    backgroundColor: '#FF2D781A',
-  },
-  overBadgeText: {
-    ...theme.typography.labelSmall,
-    color: '#FF2D78',
-    fontWeight: '700',
   },
 });

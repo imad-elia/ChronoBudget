@@ -102,6 +102,19 @@ export const en = {
   'input.account': 'Account',
   'input.noAccount': 'None',
 
+  // Savings goals (sinking funds within Savings)
+  'settings.goals': 'Goals',
+  'goals.title': 'Goals',
+  'goals.subtitle': 'Earmark savings toward something specific.',
+  'goals.empty': 'No goals yet',
+  'goals.add': 'Add goal',
+  'goals.namePlaceholder': 'e.g. Car repair fund',
+  'goals.targetPlaceholder': 'Target amount',
+  'goals.save': 'Save goal',
+  'goals.deleteBlocked': 'This goal has transactions and can’t be deleted.',
+  'input.goal': 'Goal',
+  'input.noGoal': 'None',
+
   // Edit transaction
   'edit.title': 'Edit transaction',
   'edit.save': 'Save',

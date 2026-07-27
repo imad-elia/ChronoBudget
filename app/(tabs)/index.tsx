@@ -28,6 +28,7 @@ import { OnboardingOverlay } from '../../components/OnboardingOverlay';
 import { SettingsModal } from '../../components/SettingsModal';
 import { RecurringModal } from '../../components/RecurringModal';
 import { AccountsModal } from '../../components/AccountsModal';
+import { GoalsModal } from '../../components/GoalsModal';
 import { EditTransactionModal } from '../../components/EditTransactionModal';
 import {
   initDb,
@@ -38,6 +39,7 @@ import {
   setLimit,
   fetchBalances,
   fetchAccounts,
+  fetchGoals,
   getSetting,
   processRecurring,
 } from '../../db/database';
@@ -279,10 +281,11 @@ const modalStyles = StyleSheet.create({
 
 // ─── Dashboard header ─────────────────────────────────────────────────────────
 
-function DashboardHeader({ totals, onOpenLimits, onOpenSettings, onOpenRecurring, onOpenAccounts, topInset }: { totals: CategoryTotals; onOpenLimits: () => void; onOpenSettings: () => void; onOpenRecurring: () => void; onOpenAccounts: () => void; topInset: number }) {
+function DashboardHeader({ totals, onOpenLimits, onOpenSettings, onOpenRecurring, onOpenAccounts, onOpenGoals, topInset }: { totals: CategoryTotals; onOpenLimits: () => void; onOpenSettings: () => void; onOpenRecurring: () => void; onOpenAccounts: () => void; onOpenGoals: () => void; topInset: number }) {
   const limits = useBudgetStore((s) => s.limits);
   const balances = useBudgetStore((s) => s.balances);
   const accounts = useBudgetStore((s) => s.accounts);
+  const goals = useBudgetStore((s) => s.goals);
   // Subscribe to currency so the header re-renders when the user changes country.
   useBudgetStore((s) => s.currency);
   const total = totals.needs + totals.wants + totals.savings;
@@ -347,6 +350,30 @@ function DashboardHeader({ totals, onOpenLimits, onOpenSettings, onOpenRecurring
         </ScrollView>
       )}
 
+      {goals.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={headerStyles.accountsRow}
+        >
+          {goals.map((g) => {
+            const pct = g.targetAmount > 0 ? Math.round((g.currentAmount / g.targetAmount) * 100) : 0;
+            return (
+              <TouchableOpacity
+                key={g.id}
+                style={headerStyles.accountCard}
+                onPress={onOpenGoals}
+                activeOpacity={0.7}
+              >
+                <Icon name="piggy-bank-outline" size={13} color={theme.colors.textMuted} />
+                <Text style={headerStyles.accountName} numberOfLines={1}>{g.name}</Text>
+                <Text style={headerStyles.accountBalance}>{pct}%</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      )}
+
       <Text style={headerStyles.sectionLabel}>{t('dashboard.recent')}</Text>
     </View>
   );
@@ -406,6 +433,7 @@ export default function DashboardScreen() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [recurringOpen, setRecurringOpen] = useState(false);
   const [accountsOpen, setAccountsOpen] = useState(false);
+  const [goalsOpen, setGoalsOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
 
@@ -444,6 +472,7 @@ export default function DashboardScreen() {
     fetchLimits().then((l) => useBudgetStore.getState().setLimits(l));
     fetchBalances().then((b) => useBudgetStore.getState().setBalances(b));
     fetchAccounts().then((a) => useBudgetStore.getState().setAccounts(a));
+    fetchGoals().then((g) => useBudgetStore.getState().setGoals(g));
   }, [refreshCounter, dbReady]);
 
   const handleDelete = useCallback(async (id: number) => {
@@ -468,7 +497,7 @@ export default function DashboardScreen() {
           keyExtractor={(item) => String(item.id)}
           renderItem={renderItem}
           ListHeaderComponent={
-            <DashboardHeader totals={totals} onOpenLimits={() => setLimitsOpen(true)} onOpenSettings={() => setSettingsOpen(true)} onOpenRecurring={() => setRecurringOpen(true)} onOpenAccounts={() => setAccountsOpen(true)} topInset={insets.top} />
+            <DashboardHeader totals={totals} onOpenLimits={() => setLimitsOpen(true)} onOpenSettings={() => setSettingsOpen(true)} onOpenRecurring={() => setRecurringOpen(true)} onOpenAccounts={() => setAccountsOpen(true)} onOpenGoals={() => setGoalsOpen(true)} topInset={insets.top} />
           }
           ListEmptyComponent={<EmptyState />}
           contentContainerStyle={[screenStyles.listContent, { paddingBottom: insets.bottom + 16 }]}
@@ -501,6 +530,11 @@ export default function DashboardScreen() {
       <AccountsModal
         visible={accountsOpen}
         onClose={() => setAccountsOpen(false)}
+      />
+
+      <GoalsModal
+        visible={goalsOpen}
+        onClose={() => setGoalsOpen(false)}
       />
 
       <EditTransactionModal

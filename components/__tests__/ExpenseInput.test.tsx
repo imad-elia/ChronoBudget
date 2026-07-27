@@ -47,7 +47,7 @@ describe('ExpenseInput — fast mode', () => {
     await fireEvent.press(screen.getByText('Add'));
 
     await waitFor(() => {
-      expect(db.insertTransaction).toHaveBeenCalledWith(15, 'wants', 'Dining', '', null);
+      expect(db.insertTransaction).toHaveBeenCalledWith(15, 'wants', 'Dining', '', null, null);
     });
     expect(db.learnKeyword).not.toHaveBeenCalled();
     expect(useBudgetStore.getState().triggerRefresh).toHaveBeenCalled();

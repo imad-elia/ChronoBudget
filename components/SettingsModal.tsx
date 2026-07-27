@@ -17,6 +17,7 @@ import { t } from '../lib/i18n';
 import { setBalance, fetchBalances } from '../db/database';
 import { KeywordsModal } from './KeywordsModal';
 import { AccountsModal } from './AccountsModal';
+import { GoalsModal } from './GoalsModal';
 
 const BALANCE_CATEGORIES: { id: Category; color: string }[] = [
   { id: 'needs',   color: '#00FF87' },
@@ -50,6 +51,7 @@ export function SettingsModal({ visible, onClose }: { visible: boolean; onClose:
   });
   const [keywordsOpen, setKeywordsOpen] = useState(false);
   const [accountsOpen, setAccountsOpen] = useState(false);
+  const [goalsOpen, setGoalsOpen] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -152,6 +154,12 @@ export function SettingsModal({ visible, onClose }: { visible: boolean; onClose:
             <Icon name="chevron-right" size={16} color={theme.colors.textMuted} />
           </TouchableOpacity>
 
+          <TouchableOpacity style={styles.keywordsRow} onPress={() => setGoalsOpen(true)} activeOpacity={0.7}>
+            <Icon name="piggy-bank-outline" size={16} color={theme.colors.textSecondary} />
+            <Text style={styles.keywordsLabel}>{t('settings.goals')}</Text>
+            <Icon name="chevron-right" size={16} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.keywordsRow} onPress={() => setKeywordsOpen(true)} activeOpacity={0.7}>
             <Icon name="tag-multiple-outline" size={16} color={theme.colors.textSecondary} />
             <Text style={styles.keywordsLabel}>{t('settings.keywords')}</Text>
@@ -166,6 +174,7 @@ export function SettingsModal({ visible, onClose }: { visible: boolean; onClose:
 
       <KeywordsModal visible={keywordsOpen} onClose={() => setKeywordsOpen(false)} />
       <AccountsModal visible={accountsOpen} onClose={() => setAccountsOpen(false)} />
+      <GoalsModal visible={goalsOpen} onClose={() => setGoalsOpen(false)} />
     </Modal>
   );
 }

@@ -57,6 +57,7 @@ describe('EditTransactionModal', () => {
         subcategory: 'Dining',
         note: 'lunch',
         accountId: null,
+        goalId: null,
       });
     });
     expect(onClose).toHaveBeenCalled();

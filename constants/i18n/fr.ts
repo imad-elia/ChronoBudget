@@ -102,6 +102,19 @@ export const fr: Record<StringKey, string> = {
   'input.account': 'Compte',
   'input.noAccount': 'Aucun',
 
+  // Savings goals (sinking funds within Savings)
+  'settings.goals': 'Objectifs',
+  'goals.title': 'Objectifs',
+  'goals.subtitle': 'Réservez de l’épargne pour un objectif précis.',
+  'goals.empty': 'Aucun objectif',
+  'goals.add': 'Ajouter un objectif',
+  'goals.namePlaceholder': 'ex. Fonds réparation voiture',
+  'goals.targetPlaceholder': 'Montant cible',
+  'goals.save': 'Enregistrer l’objectif',
+  'goals.deleteBlocked': 'Cet objectif a des transactions et ne peut pas être supprimé.',
+  'input.goal': 'Objectif',
+  'input.noGoal': 'Aucun',
+
   // Edit transaction
   'edit.title': 'Modifier la transaction',
   'edit.save': 'Enregistrer',

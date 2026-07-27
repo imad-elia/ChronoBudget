@@ -42,6 +42,7 @@ export function ExpenseInput() {
   const [category, setCategory] = useState<Category>('needs');
   const [subcategory, setSubcategory] = useState('');
   const [accountId, setAccountId] = useState<number | null>(null);
+  const [goalId, setGoalId] = useState<number | null>(null);
   const [customSubcategory, setCustomSubcategory] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [overridden, setOverridden] = useState(false);
@@ -57,6 +58,7 @@ export function ExpenseInput() {
   const learned = useBudgetStore((s) => s.learnedKeywords);
   const symbol = useBudgetStore((s) => s.symbol);
   const accounts = useBudgetStore((s) => s.accounts);
+  const goals = useBudgetStore((s) => s.goals);
   const activeColor = CATEGORIES.find((c) => c.id === category)!.color;
 
   // Description that feeds the classifier: parsed out of the smart field in
@@ -98,6 +100,7 @@ export function ExpenseInput() {
     setOverridden(false);
     setShowOverride(false);
     setAccountId(null);
+    setGoalId(null);
   }
 
   function switchMode(m: InputMode) {
@@ -118,6 +121,7 @@ export function ExpenseInput() {
     setShowCustomInput(false);
     setOverridden(true);
     setError(null);
+    if (cat !== 'savings') setGoalId(null);
   }
 
   function selectSubcategory(s: string) {
@@ -163,6 +167,7 @@ export function ExpenseInput() {
         resolvedSub,
         mode === 'detailed' ? note : '',
         accountId,
+        category === 'savings' ? goalId : null,
       );
 
       // Learn from corrections and confirmed no-matches so the guess improves
@@ -278,6 +283,42 @@ export function ExpenseInput() {
     );
   };
 
+  // Optional savings-goal tag. Only relevant (and shown) for the Savings
+  // category, and hidden entirely when no goals exist yet.
+  const renderGoalChips = () => {
+    if (category !== 'savings' || goals.length === 0) return null;
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.subRow}
+        keyboardShouldPersistTaps="handled"
+      >
+        <TouchableOpacity
+          style={[styles.subChip, goalId === null && { borderColor: activeColor, backgroundColor: `${activeColor}18` }]}
+          onPress={() => setGoalId(null)}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.subLabel, { color: goalId === null ? activeColor : theme.colors.textMuted }]}>{t('input.noGoal')}</Text>
+        </TouchableOpacity>
+        {goals.map((g) => {
+          const active = goalId === g.id;
+          return (
+            <TouchableOpacity
+              key={g.id}
+              style={[styles.subChip, active && { borderColor: activeColor, backgroundColor: `${activeColor}18` }]}
+              onPress={() => setGoalId(g.id)}
+              activeOpacity={0.7}
+            >
+              <Icon name="piggy-bank-outline" size={11} color={active ? activeColor : theme.colors.textMuted} />
+              <Text style={[styles.subLabel, { color: active ? activeColor : theme.colors.textMuted }]}>{g.name}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    );
+  };
+
   // Live "goes to" preview shown once the user has typed something.
   const renderPreview = () => {
     if (!hasEntry) return null;
@@ -361,6 +402,7 @@ export function ExpenseInput() {
               {renderCategoryChips()}
               {renderSubcategoryChips()}
               {renderAccountChips()}
+              {renderGoalChips()}
               {showCustomInput && (
                 <View style={[styles.inputWrapper, { borderColor: `${activeColor}40` }]}>
                   <Icon name="tag-outline" size={15} color={theme.colors.textMuted} style={styles.noteIcon} />
@@ -410,6 +452,9 @@ export function ExpenseInput() {
 
           {/* Account chips (hidden when no accounts exist) */}
           {renderAccountChips()}
+
+          {/* Goal chips (Savings category only, hidden when no goals exist) */}
+          {renderGoalChips()}
 
           {/* Custom subcategory input */}
           {showCustomInput && (

@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
-import type { Category, Transaction, CategoryTotals, CategoryLimits, MonthlyTotal, RecurringRule, Frequency, Account, Transfer } from '../store/useBudgetStore';
+import type { Category, Transaction, CategoryTotals, CategoryLimits, MonthlyTotal, RecurringRule, Frequency, Account, Transfer, Goal } from '../store/useBudgetStore';
 import { advance } from '../lib/recurrence';
 
 // Native uses a persistent on-disk SQLite file. Web uses an in-memory database:
@@ -12,7 +12,7 @@ import { advance } from '../lib/recurrence';
 // Tradeoff: web data resets on page reload.
 const DB_NAME = Platform.OS === 'web' ? ':memory:' : 'chronobudget.db';
 
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
 
 // Open the connection AND run migrations as one atomic operation, then memoize
 // the resulting promise. Because every DB helper calls getDb(), this guarantees
@@ -134,6 +134,20 @@ export async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
     `);
   }
 
+  if (user_version < 8) {
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS goals (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        name            TEXT    NOT NULL,
+        target_amount   REAL    NOT NULL,
+        current_amount  REAL    NOT NULL DEFAULT 0,
+        created_at      INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+
+      ALTER TABLE transactions ADD COLUMN goal_id INTEGER REFERENCES goals(id);
+    `);
+  }
+
   await database.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION};`);
 
   return database;
@@ -226,20 +240,25 @@ export async function insertTransaction(
   subcategory: string,
   note: string,
   accountId?: number | null,
+  goalId?: number | null,
 ): Promise<void> {
   const database = await getDb();
   await database.withTransactionAsync(async () => {
     await database.runAsync(
-      'INSERT INTO transactions (amount, category, subcategory, note, timestamp, account_id) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO transactions (amount, category, subcategory, note, timestamp, account_id, goal_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
       amount,
       category,
       subcategory.trim(),
       note.trim(),
       Date.now(),
       accountId ?? null,
+      goalId ?? null,
     );
     if (accountId) {
       await database.runAsync('UPDATE accounts SET balance = balance - ? WHERE id = ?', amount, accountId);
+    }
+    if (goalId) {
+      await database.runAsync('UPDATE goals SET current_amount = current_amount + ? WHERE id = ?', amount, goalId);
     }
   });
 }
@@ -252,34 +271,43 @@ export async function updateTransaction(
     subcategory: string;
     note: string;
     accountId?: number | null;
+    goalId?: number | null;
   },
 ): Promise<void> {
   const database = await getDb();
   await database.withTransactionAsync(async () => {
-    const [prev] = await database.getAllAsync<{ amount: number; account_id: number | null }>(
-      'SELECT amount, account_id FROM transactions WHERE id = ?',
+    const [prev] = await database.getAllAsync<{ amount: number; account_id: number | null; goal_id: number | null }>(
+      'SELECT amount, account_id, goal_id FROM transactions WHERE id = ?',
       id,
     );
     const nextAccountId = fields.accountId ?? null;
+    const nextGoalId = fields.goalId ?? null;
 
-    // Reverse the previous transaction's effect on its account, then apply the
-    // new one — handles amount changes, account changes, and account removal.
+    // Reverse the previous transaction's effect on its account/goal, then apply
+    // the new one — handles amount changes, account/goal changes, and removal.
     if (prev?.account_id) {
       await database.runAsync('UPDATE accounts SET balance = balance + ? WHERE id = ?', prev.amount, prev.account_id);
     }
     if (nextAccountId) {
       await database.runAsync('UPDATE accounts SET balance = balance - ? WHERE id = ?', fields.amount, nextAccountId);
     }
+    if (prev?.goal_id) {
+      await database.runAsync('UPDATE goals SET current_amount = current_amount - ? WHERE id = ?', prev.amount, prev.goal_id);
+    }
+    if (nextGoalId) {
+      await database.runAsync('UPDATE goals SET current_amount = current_amount + ? WHERE id = ?', fields.amount, nextGoalId);
+    }
 
     await database.runAsync(
       `UPDATE transactions
-       SET amount = ?, category = ?, subcategory = ?, note = ?, account_id = ?
+       SET amount = ?, category = ?, subcategory = ?, note = ?, account_id = ?, goal_id = ?
        WHERE id = ?`,
       fields.amount,
       fields.category,
       fields.subcategory.trim(),
       fields.note.trim(),
       nextAccountId,
+      nextGoalId,
       id,
     );
   });
@@ -310,12 +338,15 @@ export async function insertTransactionsBulk(
 export async function deleteTransaction(id: number): Promise<void> {
   const database = await getDb();
   await database.withTransactionAsync(async () => {
-    const [prev] = await database.getAllAsync<{ amount: number; account_id: number | null }>(
-      'SELECT amount, account_id FROM transactions WHERE id = ?',
+    const [prev] = await database.getAllAsync<{ amount: number; account_id: number | null; goal_id: number | null }>(
+      'SELECT amount, account_id, goal_id FROM transactions WHERE id = ?',
       id,
     );
     if (prev?.account_id) {
       await database.runAsync('UPDATE accounts SET balance = balance + ? WHERE id = ?', prev.amount, prev.account_id);
+    }
+    if (prev?.goal_id) {
+      await database.runAsync('UPDATE goals SET current_amount = current_amount - ? WHERE id = ?', prev.amount, prev.goal_id);
     }
     await database.runAsync('DELETE FROM transactions WHERE id = ?', id);
   });
@@ -352,7 +383,7 @@ export async function fetchCategoryTotals(
 export async function fetchRecentTransactions(limit = 20): Promise<Transaction[]> {
   const database = await getDb();
   return database.getAllAsync<Transaction>(
-    `SELECT id, amount, category, subcategory, note, timestamp, account_id AS accountId
+    `SELECT id, amount, category, subcategory, note, timestamp, account_id AS accountId, goal_id AS goalId
      FROM transactions
      ORDER BY timestamp DESC
      LIMIT ?`,
@@ -367,7 +398,7 @@ export async function fetchTransactions(
   const database = await getDb();
   if (category) {
     return database.getAllAsync<Transaction>(
-      `SELECT id, amount, category, subcategory, note, timestamp, account_id AS accountId
+      `SELECT id, amount, category, subcategory, note, timestamp, account_id AS accountId, goal_id AS goalId
        FROM transactions
        WHERE category = ?
        ORDER BY timestamp DESC
@@ -377,7 +408,7 @@ export async function fetchTransactions(
     );
   }
   return database.getAllAsync<Transaction>(
-    `SELECT id, amount, category, subcategory, note, timestamp, account_id AS accountId
+    `SELECT id, amount, category, subcategory, note, timestamp, account_id AS accountId, goal_id AS goalId
      FROM transactions
      ORDER BY timestamp DESC
      LIMIT ?`,
@@ -481,6 +512,51 @@ export async function deleteAccount(id: number): Promise<boolean> {
   if (txCount > 0 || recurringCount > 0) return false;
 
   await database.runAsync('DELETE FROM accounts WHERE id = ?', id);
+  return true;
+}
+
+// ─── Savings goals ────────────────────────────────────────────────────────────
+
+export async function fetchGoals(): Promise<Goal[]> {
+  const database = await getDb();
+  return database.getAllAsync<Goal>(
+    `SELECT id, name, target_amount AS targetAmount, current_amount AS currentAmount
+     FROM goals
+     ORDER BY id ASC`,
+  );
+}
+
+export async function insertGoal(name: string, targetAmount: number): Promise<void> {
+  const database = await getDb();
+  await database.runAsync(
+    'INSERT INTO goals (name, target_amount) VALUES (?, ?)',
+    name.trim(),
+    targetAmount,
+  );
+}
+
+export async function updateGoal(id: number, name: string, targetAmount: number): Promise<void> {
+  const database = await getDb();
+  await database.runAsync(
+    'UPDATE goals SET name = ?, target_amount = ? WHERE id = ?',
+    name.trim(),
+    targetAmount,
+    id,
+  );
+}
+
+// Refuses to delete a goal still referenced by a transaction, so historical
+// savings never silently lose their goal tag. Returns false (no-op) if
+// blocked, true if deleted — same convention as deleteAccount.
+export async function deleteGoal(id: number): Promise<boolean> {
+  const database = await getDb();
+  const [{ count: txCount }] = await database.getAllAsync<{ count: number }>(
+    'SELECT COUNT(*) AS count FROM transactions WHERE goal_id = ?',
+    id,
+  );
+  if (txCount > 0) return false;
+
+  await database.runAsync('DELETE FROM goals WHERE id = ?', id);
   return true;
 }
 

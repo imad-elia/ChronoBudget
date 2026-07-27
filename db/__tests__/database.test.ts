@@ -16,7 +16,7 @@ describe('schema migration', () => {
   it('migrates a fresh DB to the latest schema version with all tables', async () => {
     const conn = await database.getDb();
     const [{ user_version }] = await conn.getAllAsync<{ user_version: number }>('PRAGMA user_version');
-    expect(user_version).toBe(7);
+    expect(user_version).toBe(8);
 
     const tables = await conn.getAllAsync<{ name: string }>(
       "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",
@@ -32,6 +32,7 @@ describe('schema migration', () => {
         'category_balance',
         'accounts',
         'transfers',
+        'goals',
       ]),
     );
   });
@@ -54,7 +55,7 @@ describe('migration idempotency', () => {
 
     const conn = await database.getDb();
     const [{ user_version }] = await conn.getAllAsync<{ user_version: number }>('PRAGMA user_version');
-    expect(user_version).toBe(7);
+    expect(user_version).toBe(8);
 
     const totals = await database.fetchCategoryTotals();
     expect(totals.needs).toBe(20);
@@ -457,5 +458,81 @@ describe('transfers', () => {
     expect(totals.needs).toBe(0);
     expect(totals.wants).toBe(0);
     expect(totals.savings).toBe(0);
+  });
+});
+
+describe('goals', () => {
+  it('inserts a goal with a target amount and fetches it back with a zero starting balance', async () => {
+    await database.insertGoal('Car repair fund', 2000);
+    const [goal] = await database.fetchGoals();
+    expect(goal).toMatchObject({ name: 'Car repair fund', targetAmount: 2000, currentAmount: 0 });
+  });
+
+  it('renames a goal and updates its target without touching current_amount', async () => {
+    await database.insertGoal('Car repair fund', 2000);
+    const [goal] = await database.fetchGoals();
+    await database.insertTransaction(500, 'savings', '', '', null, goal.id);
+
+    await database.updateGoal(goal.id, 'Car fund', 2500);
+
+    const [updated] = await database.fetchGoals();
+    expect(updated).toMatchObject({ name: 'Car fund', targetAmount: 2500, currentAmount: 500 });
+  });
+
+  it('credits current_amount when a savings transaction is tagged with a goal', async () => {
+    await database.insertGoal('Car repair fund', 2000);
+    const [goal] = await database.fetchGoals();
+    await database.insertTransaction(500, 'savings', '', '', null, goal.id);
+    const [after] = await database.fetchGoals();
+    expect(after.currentAmount).toBe(500);
+  });
+
+  it('reverses the old amount and applies the new one when a tagged transaction is updated', async () => {
+    await database.insertGoal('Car repair fund', 2000);
+    const [goal] = await database.fetchGoals();
+    await database.insertTransaction(500, 'savings', '', '', null, goal.id);
+    const [tx] = await database.fetchTransactions();
+
+    await database.updateTransaction(tx.id, {
+      amount: 800,
+      category: 'savings',
+      subcategory: '',
+      note: '',
+      goalId: goal.id,
+    });
+
+    const [after] = await database.fetchGoals();
+    expect(after.currentAmount).toBe(800); // 500 reversed (-500) then +800
+  });
+
+  it('debits current_amount back when a tagged transaction is deleted', async () => {
+    await database.insertGoal('Car repair fund', 2000);
+    const [goal] = await database.fetchGoals();
+    await database.insertTransaction(500, 'savings', '', '', null, goal.id);
+    const [tx] = await database.fetchTransactions();
+
+    await database.deleteTransaction(tx.id);
+
+    const [after] = await database.fetchGoals();
+    expect(after.currentAmount).toBe(0);
+  });
+
+  it('refuses to delete a goal still referenced by a transaction', async () => {
+    await database.insertGoal('Car repair fund', 2000);
+    const [goal] = await database.fetchGoals();
+    await database.insertTransaction(500, 'savings', '', '', null, goal.id);
+
+    const deleted = await database.deleteGoal(goal.id);
+    expect(deleted).toBe(false);
+    expect(await database.fetchGoals()).toHaveLength(1);
+  });
+
+  it('deletes a goal with no references', async () => {
+    await database.insertGoal('Empty goal', 100);
+    const [goal] = await database.fetchGoals();
+
+    const deleted = await database.deleteGoal(goal.id);
+    expect(deleted).toBe(true);
+    expect(await database.fetchGoals()).toHaveLength(0);
   });
 });
