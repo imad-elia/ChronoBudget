@@ -13,6 +13,9 @@ None.
 
 ## Resolved (for reference)
 
+- **`npx tsc --noEmit` had 4 pre-existing type errors, invisible until CI started gating on it** — none were runtime bugs (app worked fine), but they blocked the new CI typecheck step: `StyleSheet.absoluteFillObject` was removed from RN's types (5 call sites → `StyleSheet.absoluteFill`); plain `FlatList`'s types don't include the Reanimated-only `itemLayoutAnimation` prop (dashboard list → `Animated.FlatList`); `expo-status-bar`'s `StatusBarProps` dropped `backgroundColor` (removed from `app/_layout.tsx`); `ExternalLink.tsx`'s `href` needed a cast since it takes arbitrary external URLs, not typed app routes. All behavior-preserving, verified in browser preview. See [[testing-strategy]]. Fixed 2026-07-23.
+- **GitHub Actions "Node.js 20 is deprecated" warning on every CI run** — `actions/checkout@v4`/`actions/setup-node@v4`'s own runtime targets Node 20 (separate from the `node-version` input passed to setup-node, which was already correctly set). Fixed by bumping both actions to v5, which target Node 24 natively. Fixed 2026-07-23.
+
 - **Onboarding Continue button invisible on iOS (country step)** — the button reused `styles.nextBtn` (`flex: 2`, meant for a horizontal row); in the vertical country card Yoga collapsed it to 0 height. `flexBasis: 'auto'` overrides fix web but not native (Yoga treats `auto` as unset). Fixed with a self-contained flex-free `continueBtn` style + footer-pinned card layout (scrollable body, `windowHeight - 80` cap). See [[2026-07-03-session]]. Fixed 2026-07-03.
 - **BentoCard "Remaining" balance line too faint to notice** — `styles.remaining` used `labelSmall` (10px) in `textMuted` (`#4A5168`), nearly invisible against the card's near-black gradient. Fixed by bumping to `bodyMedium` (14px, weight 600) and switching the positive-case color to `textSecondary` (#8B92A5); negative case keeps the existing neon-pink override. See [[2026-07-21-session]]. Fixed 2026-07-21.
 
