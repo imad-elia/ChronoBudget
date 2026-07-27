@@ -15,7 +15,7 @@ import { DatePickerField } from './DatePickerField';
 import { useBudgetStore } from '../store/useBudgetStore';
 import type { Category, Frequency, RecurringRule } from '../store/useBudgetStore';
 import { theme } from '../theme';
-import { SUBCATEGORIES } from '../constants/subcategories';
+import { SUBCATEGORIES, subcategoryLabel } from '../constants/subcategories';
 import { formatCurrency, formatDate } from '../lib/format';
 import { t } from '../lib/i18n';
 import {
@@ -193,7 +193,7 @@ export function RecurringModal({ visible, onClose }: { visible: boolean; onClose
                 ) : (
                   rules.map((rule) => {
                     const c = colorFor(rule.category);
-                    const label = rule.subcategory || rule.note || CATEGORY_LABEL[rule.category];
+                    const label = (rule.subcategory && subcategoryLabel(rule.subcategory)) || rule.note || CATEGORY_LABEL[rule.category];
                     return (
                       <TouchableOpacity
                         key={rule.id}
@@ -280,7 +280,7 @@ export function RecurringModal({ visible, onClose }: { visible: boolean; onClose
                       onPress={() => selectSubcategory(s)}
                       activeOpacity={0.7}
                     >
-                      <Text style={[styles.subLabel, { color: active ? activeColor : theme.colors.textMuted }]}>{s}</Text>
+                      <Text style={[styles.subLabel, { color: active ? activeColor : theme.colors.textMuted }]}>{subcategoryLabel(s)}</Text>
                     </TouchableOpacity>
                   );
                 })}

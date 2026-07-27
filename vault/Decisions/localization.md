@@ -101,6 +101,28 @@ language after a first pick. A picker (`SUPPORTED_LANGUAGES` — currently
 added to `lib/i18n.ts` so other modules (the smart-input keyword map) can
 read the active language without importing the store directly.
 
+## Subcategory display translation (2026-07-27, later session)
+
+User report: editing a transaction while in French still showed English text.
+Found a translation-readiness gap distinct from the ones above: **subcategory
+names** (`constants/subcategories.ts`'s `SUBCATEGORIES` — Rent, Dining, Emergency
+Fund, etc.) were never routed through `t()` at all, unlike categories. The raw
+English string doubles as both the DB-stored value and the chip display label,
+so every render site (`ExpenseInput.tsx`, `EditTransactionModal.tsx`,
+`KeywordsModal.tsx`, `RecurringModal.tsx`, plus the Dashboard/History recent-
+transaction row labels in `index.tsx`/`history.tsx`) just echoed it back
+untranslated.
+
+Fixed with a **display-only** translation layer, mirroring `CATEGORY_LABEL_KEY`:
+15 new `subcategory.*` keys in `en.ts`/`fr.ts`, and a `SUBCATEGORY_LABEL_KEY`
+map + `subcategoryLabel()` helper (both in `constants/subcategories.ts`) that
+looks up the canonical English string and translates it for display, falling
+through unchanged for user-typed custom subcategories. The canonical string
+itself is untouched — still what's stored in `transactions.subcategory` and
+still what the EN/FR keyword dictionaries in `lib/detectCategory.ts` target —
+so this was purely a rendering fix, no schema/detection changes. See
+[[open-issues]] for the full list of call sites and verification notes.
+
 ## Related notes
 
 - [[smart-input-classifier]] — shipped in the same session; French keyword

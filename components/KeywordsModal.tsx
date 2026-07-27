@@ -14,7 +14,7 @@ import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useBudgetStore } from '../store/useBudgetStore';
 import type { Category } from '../store/useBudgetStore';
 import { theme } from '../theme';
-import { SUBCATEGORIES } from '../constants/subcategories';
+import { SUBCATEGORIES, subcategoryLabel } from '../constants/subcategories';
 import { t } from '../lib/i18n';
 import { learnKeyword, deleteLearnedKeyword } from '../db/database';
 
@@ -198,7 +198,7 @@ export function KeywordsModal({ visible, onClose }: Props) {
                         onPress={() => { setSubcategory(s); setError(null); }}
                         activeOpacity={0.7}
                       >
-                        <Text style={[styles.subLabel, { color: active ? activeColor : theme.colors.textMuted }]}>{s}</Text>
+                        <Text style={[styles.subLabel, { color: active ? activeColor : theme.colors.textMuted }]}>{subcategoryLabel(s)}</Text>
                       </TouchableOpacity>
                     );
                   })}

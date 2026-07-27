@@ -12,6 +12,23 @@ export const fr: Record<StringKey, string> = {
   'category.wants': 'Envies',
   'category.savings': 'Épargne',
 
+  // Subcategories
+  'subcategory.rent': 'Loyer',
+  'subcategory.groceries': 'Courses',
+  'subcategory.transport': 'Transport',
+  'subcategory.bills': 'Factures',
+  'subcategory.health': 'Santé',
+  'subcategory.education': 'Éducation',
+  'subcategory.dining': 'Restaurants',
+  'subcategory.entertainment': 'Divertissement',
+  'subcategory.shopping': 'Shopping',
+  'subcategory.travel': 'Voyage',
+  'subcategory.subscriptions': 'Abonnements',
+  'subcategory.emergencyFund': "Fonds d'urgence",
+  'subcategory.investment': 'Investissement',
+  'subcategory.retirement': 'Retraite',
+  'subcategory.goal': 'Objectif',
+
   // Expense input
   'input.fast': 'Rapide',
   'input.detailed': 'Détaillé',

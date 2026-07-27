@@ -14,7 +14,7 @@ import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useBudgetStore } from '../store/useBudgetStore';
 import type { Category, Transaction } from '../store/useBudgetStore';
 import { theme } from '../theme';
-import { SUBCATEGORIES } from '../constants/subcategories';
+import { SUBCATEGORIES, subcategoryLabel } from '../constants/subcategories';
 import { t } from '../lib/i18n';
 import { updateTransaction, deleteTransaction } from '../db/database';
 
@@ -196,7 +196,7 @@ export function EditTransactionModal({ transaction, onClose }: Props) {
                     onPress={() => selectSubcategory(s)}
                     activeOpacity={0.7}
                   >
-                    <Text style={[styles.subLabel, { color: active ? activeColor : theme.colors.textMuted }]}>{s}</Text>
+                    <Text style={[styles.subLabel, { color: active ? activeColor : theme.colors.textMuted }]}>{subcategoryLabel(s)}</Text>
                   </TouchableOpacity>
                 );
               })}

@@ -38,6 +38,7 @@ import { useBudgetStore, type Transaction, type Category } from '../../store/use
 import { theme } from '../../theme';
 import { formatCurrency } from '../../lib/format';
 import { t } from '../../lib/i18n';
+import { subcategoryLabel } from '../../constants/subcategories';
 import { parseCsv } from '../../lib/csv';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -110,7 +111,7 @@ function HistoryRow({ item, onDelete, onEdit }: { item: Transaction; onDelete: (
           <Icon name={cfg.icon} size={18} color={cfg.color} />
         </View>
         <View style={rowStyles.meta}>
-          <Text style={rowStyles.note} numberOfLines={1}>{item.subcategory || item.note || t(cfg.labelKey)}</Text>
+          <Text style={rowStyles.note} numberOfLines={1}>{(item.subcategory && subcategoryLabel(item.subcategory)) || item.note || t(cfg.labelKey)}</Text>
           <View style={rowStyles.tagRow}>
             <View style={[rowStyles.tag, { backgroundColor: `${cfg.color}18`, borderColor: `${cfg.color}30` }]}>
               <Text style={[rowStyles.tagText, { color: cfg.color }]}>{t(cfg.labelKey)}</Text>

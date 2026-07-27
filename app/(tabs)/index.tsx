@@ -47,6 +47,7 @@ import { useBudgetStore, type Transaction, type CategoryTotals, type Category } 
 import { theme } from '../../theme';
 import { formatCurrency } from '../../lib/format';
 import { t } from '../../lib/i18n';
+import { subcategoryLabel } from '../../constants/subcategories';
 
 const BENTO_CONFIG = [
   {
@@ -106,7 +107,7 @@ function TransactionRow({ item, onDelete, onEdit }: { item: Transaction; onDelet
         </View>
         <View style={rowStyles.meta}>
           <Text style={rowStyles.note} numberOfLines={1}>
-            {item.subcategory || item.note || t(config.labelKey)}
+            {(item.subcategory && subcategoryLabel(item.subcategory)) || item.note || t(config.labelKey)}
           </Text>
           <Text style={rowStyles.date}>{date}</Text>
         </View>

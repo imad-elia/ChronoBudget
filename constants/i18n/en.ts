@@ -12,6 +12,23 @@ export const en = {
   'category.wants': 'Wants',
   'category.savings': 'Savings',
 
+  // Subcategories
+  'subcategory.rent': 'Rent',
+  'subcategory.groceries': 'Groceries',
+  'subcategory.transport': 'Transport',
+  'subcategory.bills': 'Bills',
+  'subcategory.health': 'Health',
+  'subcategory.education': 'Education',
+  'subcategory.dining': 'Dining',
+  'subcategory.entertainment': 'Entertainment',
+  'subcategory.shopping': 'Shopping',
+  'subcategory.travel': 'Travel',
+  'subcategory.subscriptions': 'Subscriptions',
+  'subcategory.emergencyFund': 'Emergency Fund',
+  'subcategory.investment': 'Investment',
+  'subcategory.retirement': 'Retirement',
+  'subcategory.goal': 'Goal',
+
   // Expense input
   'input.fast': 'Fast',
   'input.detailed': 'Detailed',

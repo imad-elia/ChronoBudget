@@ -16,7 +16,7 @@ import { getSetting, setSetting } from '../db/database';
 import { useBudgetStore } from '../store/useBudgetStore';
 import type { Category } from '../store/useBudgetStore';
 import { theme } from '../theme';
-import { SUBCATEGORIES } from '../constants/subcategories';
+import { SUBCATEGORIES, subcategoryLabel } from '../constants/subcategories';
 import { parseEntry, detectCategory, learnKey } from '../lib/detectCategory';
 import { t } from '../lib/i18n';
 
@@ -194,7 +194,7 @@ export function ExpenseInput() {
   const subDisplay =
     subcategory === '__custom__'
       ? (customSubcategory.trim() || t('input.custom'))
-      : subcategory;
+      : subcategoryLabel(subcategory);
 
   const renderCategoryChips = () => (
     <View style={styles.categoryRow}>
@@ -232,7 +232,7 @@ export function ExpenseInput() {
             onPress={() => selectSubcategory(s)}
             activeOpacity={0.7}
           >
-            <Text style={[styles.subLabel, { color: active ? activeColor : theme.colors.textMuted }]}>{s}</Text>
+            <Text style={[styles.subLabel, { color: active ? activeColor : theme.colors.textMuted }]}>{subcategoryLabel(s)}</Text>
           </TouchableOpacity>
         );
       })}
