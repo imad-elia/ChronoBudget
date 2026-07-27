@@ -1,0 +1,1 @@
+Initial release: Needs/Wants/Savings tracking, smart fast-entry, savings goals, budget limits, recurring transactions, multiple accounts, history & trends, CSV export/import, English and Français support.

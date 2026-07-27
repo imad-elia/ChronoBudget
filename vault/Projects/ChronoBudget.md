@@ -44,6 +44,7 @@ Offline-first mobile expense tracker built for OLED dark-mode phones. Users log 
 - CSV round-trip import: `lib/csv.ts` parses CSVs matching the app's own export format only (no generic bank-CSV mapping); malformed rows are skipped and counted rather than aborting the import. Import button added next to Export in History (web: `<input type="file">`; native: new `expo-document-picker` dependency + `expo-file-system`). Bulk-inserted via `insertTransactionsBulk()`.
 - Recurring rules can now optionally tag an account too, same chip picker as one-off transactions (`RecurringModal.tsx`); `processRecurring()`'s posting loop applies the matching account-balance debit per posted occurrence. Dashboard also gained a small read-only accounts-balance row (`DashboardHeader` in `index.tsx`, tap to open `AccountsModal`), hidden when no accounts exist. See [[account-aware-budgeting]].
 - Savings goals (sinking funds): schema v8 adds a `goals` table (name, target amount, running current amount) plus a nullable `goal_id` on `transactions`. Users can create named goals (e.g. "Car repair fund") via the new `GoalsModal.tsx` (reachable from Settings), tag Savings-category transactions to a goal via a chip picker in `ExpenseInput.tsx`/`EditTransactionModal.tsx` (hidden unless category is Savings and at least one goal exists), and see progress via a shared `components/ProgressBar.tsx` (extracted from `BentoCard.tsx`). A goal's `current_amount` only grows through tagged transactions — no direct balance edit. Dashboard gained a matching read-only goals-progress row next to the accounts row. See [[savings-goals-schema]].
+- App/Play Store submission readiness: an audit confirmed CI only ever exercises the web build (Jest + Playwright), never a native iOS/Android build — expected, since automated tests validate logic, not store compliance. Filled in the config/metadata gaps that actually blocked a native build or submission: `app.json` gained `android.package`/`android.versionCode`, `ios.buildNumber`, and an `ios.privacyManifests` block (declares `FileTimestamp`/`DiskSpace` "required reason" API categories tied to `expo-file-system`'s CSV export/import usage). New `eas.json` (development/preview/production build profiles + a submit skeleton, no fabricated credentials). New `docs/privacy-policy.html` (static page, meant for GitHub Pages) and `store-assets/metadata/en-US/*.txt` draft listing copy. See [[store-submission-readiness]] — screenshots and a real contact email are explicitly still needed (manual, not automatable) before actual submission.
 
 ## Known issues
 
@@ -55,6 +56,7 @@ See [[open-issues]].
 - CSV import stays intentionally round-trip-only (this app's own export format); generic bank-CSV import with column mapping would be a separate, larger feature — confirmed out of scope for now.
 - Android payment-notification auto-entry was evaluated (2026-07-21) and shelved: requires a native notification-listener service (no Expo Go support, needs EAS dev build), manual per-user permission grant, Play Store declared-use justification, and fragile per-bank text parsing. Not started.
 - Savings goals (just added) don't yet support recurring-rule tagging (`RecurringModal.tsx`) — a recurring Savings contribution can't auto-post toward a specific goal. Judged a plausible future extension, not required for v1 — see [[savings-goals-schema]].
+- Store submission: screenshots (real device/simulator captures) and a real contact email in `docs/privacy-policy.html` are still needed before actually submitting. Running `eas build`/`eas submit` requires the user's own Apple Developer/Google Play accounts and credentials — not something that can be done from this environment. See [[store-submission-readiness]].
 
 ## Related notes
 
@@ -64,4 +66,5 @@ See [[open-issues]].
 - [[testing-strategy]] — automated test suite setup
 - [[account-aware-budgeting]] — accounts + transfers schema decision
 - [[savings-goals-schema]] — savings goals (sinking funds) schema decision
+- [[store-submission-readiness]] — app.json/eas.json config, privacy manifest, store metadata
 - [[localization]] — independent language selector, French keyword dictionary

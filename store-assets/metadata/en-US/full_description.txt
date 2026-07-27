@@ -1,0 +1,17 @@
+ChronoBudget is a calm, offline-first expense tracker built for phones with dark, OLED-friendly screens.
+
+Track every expense into one of three simple categories — Needs, Wants, and Savings — and set a monthly limit for each. No spreadsheets, no complicated budgeting methodology, no account required.
+
+FEATURES
+
+- Fast entry: type "15 coffee" and ChronoBudget figures out the category and subcategory automatically, learning from your corrections over time.
+- Savings goals (sinking funds): earmark money toward a named goal — a car repair fund, a vacation, a big purchase — and watch it fill up as you contribute.
+- Budget limits with live progress bars, so you always know how close you are to your monthly limit.
+- Recurring transactions: bills and subscriptions post automatically on the schedule you set.
+- Multiple accounts: track where your money actually sits (checking, cash, savings) and move money between them.
+- History and trends: review past spending and see a 6-month breakdown by category.
+- CSV export/import: your data is always yours to take with you.
+- Fully offline: no account, no login, no backend, no ads, no tracking. Everything stays on your device.
+- Available in English and Français, with more languages planned.
+
+ChronoBudget doesn't try to be a full accounting suite. It's built to answer one question quickly, every day: is my spending on track?
