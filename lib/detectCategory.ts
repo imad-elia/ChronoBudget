@@ -58,10 +58,96 @@ function titleCase(input: string): string {
 }
 
 /**
+ * Candidate stems to retry as an exact lookup when a token has no direct hit.
+ * Handles the common English suffix cases: consonant+y plurals ("bakeries" →
+ * "bakery"), -ing forms that dropped a silent e ("commuting" → "commute"),
+ * and plain -s/-es plurals. Order doesn't matter here — all candidates are
+ * tried and the caller stops at the first dictionary hit.
+ */
+function stemCandidates(token: string): string[] {
+  const candidates: string[] = [];
+  if (token.endsWith('ies') && token.length - 3 >= 3) {
+    candidates.push(token.slice(0, -3) + 'y');
+  }
+  if (token.endsWith('ing') && token.length - 3 >= 3) {
+    const stem = token.slice(0, -3);
+    candidates.push(stem, stem + 'e');
+  }
+  if (token.endsWith('es') && token.length - 2 >= 3) {
+    candidates.push(token.slice(0, -2));
+  }
+  if (token.endsWith('s') && token.length - 1 >= 3) {
+    candidates.push(token.slice(0, -1));
+  }
+  return candidates;
+}
+
+/** Bounded Levenshtein distance check — returns false early if a match at `maxDistance` is impossible. */
+function withinLevenshtein(a: string, b: string, maxDistance: number): boolean {
+  if (Math.abs(a.length - b.length) > maxDistance) return false;
+
+  const prevRow = new Array(b.length + 1);
+  for (let j = 0; j <= b.length; j++) prevRow[j] = j;
+
+  for (let i = 1; i <= a.length; i++) {
+    let prevDiag = prevRow[0];
+    prevRow[0] = i;
+    let rowMin = prevRow[0];
+    for (let j = 1; j <= b.length; j++) {
+      const temp = prevRow[j];
+      prevRow[j] = a[i - 1] === b[j - 1]
+        ? prevDiag
+        : 1 + Math.min(prevDiag, prevRow[j], prevRow[j - 1]);
+      prevDiag = temp;
+      if (prevRow[j] < rowMin) rowMin = prevRow[j];
+    }
+    if (rowMin > maxDistance) return false;
+  }
+
+  return prevRow[b.length] <= maxDistance;
+}
+
+/**
+ * Fuzzy fallback for a single token: exact-lookup a stemmed variant first,
+ * then a bounded-edit-distance scan of the dictionary keys. `learned` is
+ * checked before `KEYWORD_MAP` at each tier, mirroring the exact-match
+ * precedence. Tokens under 3 characters are skipped entirely — too short for
+ * edit-distance matching to avoid false positives against unrelated words.
+ */
+function fuzzyLookup(token: string, learned: LearnedMap): KeywordTarget | undefined {
+  if (token.length < 3) return undefined;
+
+  for (const stem of stemCandidates(token)) {
+    const hit = learned[stem] ?? KEYWORD_MAP[stem];
+    if (hit) return hit;
+  }
+
+  const maxDistance = token.length <= 5 ? 1 : 2;
+  for (const key of Object.keys(learned)) {
+    if (withinLevenshtein(token, key, maxDistance)) return learned[key];
+  }
+  for (const key of Object.keys(KEYWORD_MAP)) {
+    if (withinLevenshtein(token, key, maxDistance)) return KEYWORD_MAP[key];
+  }
+
+  return undefined;
+}
+
+/**
  * Classify a free-text description into a category + subcategory.
- * Lookup order: learned map first, then the seed KEYWORD_MAP. The first token
- * that matches wins. No match → default category with the description
- * (title-cased) as the subcategory, and matched=false.
+ *
+ * Two-pass token scan:
+ * 1. Exact: learned map first, then the seed KEYWORD_MAP — first token that
+ *    matches wins, as before.
+ * 2. Fuzzy fallback (only if pass 1 found nothing): the same tokens, in the
+ *    same order, tried against stemmed/typo-tolerant variants. This means an
+ *    exact match on a later token always beats a fuzzy match on an earlier
+ *    one, since pass 1 always completes first.
+ *
+ * No match in either pass → default category with the description
+ * (title-cased) as the subcategory, and matched=false. Fuzzy hits set
+ * matched=true just like exact hits, so they aren't auto-learned unless the
+ * user overrides the guess (see ExpenseInput's learn-on-override trigger).
  */
 export function detectCategory(description: string, learned: LearnedMap = {}): Detection {
   const desc = (description ?? '').trim();
@@ -77,6 +163,13 @@ export function detectCategory(description: string, learned: LearnedMap = {}): D
 
   for (const token of tokens) {
     const hit = learned[token] ?? KEYWORD_MAP[token];
+    if (hit) {
+      return { category: hit.category, subcategory: hit.subcategory, matched: true };
+    }
+  }
+
+  for (const token of tokens) {
+    const hit = fuzzyLookup(token, learned);
     if (hit) {
       return { category: hit.category, subcategory: hit.subcategory, matched: true };
     }

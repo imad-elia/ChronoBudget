@@ -35,6 +35,8 @@ Offline-first mobile expense tracker built for OLED dark-mode phones. Users log 
 - iOS build: verified working on iOS Simulator (iPhone 17 Pro, iOS 26.5) via macOS 13 VM (Intel, Xcode 26.5). `ios.bundleIdentifier` set in `app.json`. Onboarding country picker redesigned as a bounded table panel; native-only flex-collapse bug fixed. See [[2026-07-03-session]].
 - Automated tests: `jest-expo` + `@testing-library/react-native`, run via `npm test` (94 tests across 11 suites). Covers `lib/detectCategory.ts`, `lib/recurrence.ts`, `lib/format.ts`, `store/useBudgetStore.ts`, `components/BentoCard.tsx`/`ExpenseInput.tsx`/`EditTransactionModal.tsx`/`RecurringModal.tsx`/`KeywordsModal.tsx`/`DatePickerField.tsx`, and `db/database.ts` (schema migrations + idempotency, CRUD, `processRecurring`) against a `sql.js`-backed mock of `expo-sqlite`. Plus 3 Playwright E2E specs (`e2e/`) driving the Expo web build end-to-end (onboarding, add/edit/delete a transaction, History/Trends navigation). CI (`.github/workflows/ci.yml`) runs the unit suite + `tsc --noEmit` + the E2E suite (parallel jobs) on every push/PR to `main`. See [[testing-strategy]] — no open testing gaps currently.
 - Dashboard totals are month-scoped: `fetchCategoryTotals()` in `db/database.ts` now defaults to the current month (`currentMonthKey()`, using `strftime(..., 'localtime')` to stay consistent with JS's local-time month key), with `fetchCategoryTotals(null)` for all-time. Header label changed from "Total Spent" to "Spent This Month". Fixed 2026-07-27.
+- Full UI translation: French now ships (`constants/i18n/fr.ts`, ~100 keys), tied to country selection (no separate language picker). Fixed several frozen-label bugs and a `KeywordsModal` reactivity gap along the way, and routed the last ~15 hardcoded UI strings (category names, empty states, budget-limits modal, onboarding tour buttons) through `t()`. See [[localization]].
+- Smart input: fuzzy/stemming matching implemented — hand-rolled two-pass fallback (stemming + bounded Levenshtein) in `lib/detectCategory.ts`, no new dependency. Exact matches always still win over fuzzy ones. See [[smart-input-classifier]].
 
 ## Known issues
 
@@ -42,9 +44,10 @@ See [[open-issues]].
 
 ## Next steps
 
-- Full UI translation: string structure is ready ([[localization]]); add locale files (e.g. `fr.ts`) when desired.
-- Smart input: fuzzy/stemming matching (deferred, see [[smart-input-classifier]] Future work); non-English keyword dictionaries once other locale UI strings ship.
+- Non-English keyword dictionaries for the smart-input classifier, now that a second locale (French) ships.
 - Possible future work: account-aware budgeting, CSV *import*.
+- Independent language selector (decoupled from country/currency) — not built; language currently follows country choice only.
+- `LimitsModal` (in `index.tsx`) hardcodes a `$` currency prefix instead of the store's `symbol` — found 2026-07-27, flagged as a follow-up task, not yet fixed.
 - Android payment-notification auto-entry was evaluated (2026-07-21) and shelved: requires a native notification-listener service (no Expo Go support, needs EAS dev build), manual per-user permission grant, Play Store declared-use justification, and fragile per-bank text parsing. Not started.
 
 ## Related notes

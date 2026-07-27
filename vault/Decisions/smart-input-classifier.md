@@ -73,14 +73,29 @@ plus a direct-teach UI for manually adding keywords.
 
 ## Future work
 
-- **Fuzzy/stemming matching** — considered and deliberately deferred (2026-07-21).
-  Matching is currently exact single-token only (`lib/detectCategory.ts`), so
-  "groceries" vs. "grocery shopping" both need explicit seed entries rather than
-  resolving from one root word. A lightweight offline stemming/NLP library (e.g.
-  `compromise`) would reduce the need for exhaustive word-variant lists, but adds a
-  runtime dependency (against the project's "avoid unnecessary libraries" rule) and
-  matching complexity. Revisit if the expanded seed list + manual keywords still
-  leave common variants unmatched in practice.
+- **Fuzzy/stemming matching** — shipped 2026-07-27, hand-rolled (no new library,
+  per "avoid unnecessary libraries"). `detectCategory` is now a **two-pass** token
+  scan:
+  1. Exact (unchanged): learned map then `KEYWORD_MAP`, first token to hit wins.
+  2. Fuzzy fallback, only if pass 1 found nothing: the same tokens, in the same
+     order, each tried against (a) a stemmed exact lookup — handles consonant+y
+     plurals ("bakeries" → "bakery"), -ing forms that dropped a silent e
+     ("commuting" → "commute"), and plain -s/-es plurals — then (b) a bounded
+     Levenshtein scan of the dictionary keys (distance ≤1 for tokens ≤5 chars,
+     ≤2 for longer; tokens under 3 chars skip fuzzy matching entirely to avoid
+     false positives). `learned` candidates are checked before `KEYWORD_MAP`
+     candidates at each tier, mirroring exact-match precedence.
+  Because pass 1 always completes in full before pass 2 ever runs, an exact match
+  on a later token always beats a fuzzy match on an earlier one — no interleaving
+  ambiguity. Fuzzy hits set `matched: true` just like exact hits (the `Detection`
+  interface is unchanged — no new `matchType` field), so they are **not**
+  auto-learned into `keyword_learn` unless the user overrides the guess: the
+  existing `overridden || !matched` learn-trigger in `ExpenseInput.tsx` already
+  skips learning when `matched` is true, which avoids polluting the learned table
+  with fuzzy/distance-2 guesses that might be false positives — the stemmer/
+  Levenshtein will simply catch the same input again next time regardless.
+  All logic lives in `lib/detectCategory.ts` (`stemCandidates`, `withinLevenshtein`,
+  `fuzzyLookup`); no other files changed.
 - **Active-locale keyword map** — `constants/keywordMap.ts` currently hardcodes
   `getKeywordMap('en')`; swapping in the user's actual active language (once
   non-English keyword files exist) is a small follow-up, not done in this pass.

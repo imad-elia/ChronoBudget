@@ -82,6 +82,65 @@ describe('detectCategory', () => {
   });
 });
 
+describe('detectCategory — fuzzy/stemming fallback', () => {
+  it('resolves an unseeded consonant+y plural via stemming ("bakeries" → "bakery")', () => {
+    expect(detectCategory('bakeries')).toEqual({
+      category: 'needs',
+      subcategory: 'Groceries',
+      matched: true,
+    });
+  });
+
+  it('resolves an unseeded -ing form that drops a silent e ("commuting" → "commute")', () => {
+    expect(detectCategory('commuting')).toEqual({
+      category: 'needs',
+      subcategory: 'Transport',
+      matched: true,
+    });
+  });
+
+  it('resolves a single-character typo via bounded Levenshtein ("grocry" → "grocery")', () => {
+    expect(detectCategory('grocry')).toEqual({
+      category: 'needs',
+      subcategory: 'Groceries',
+      matched: true,
+    });
+  });
+
+  it('still falls through to the default category for a far-off non-match', () => {
+    expect(detectCategory('xyzzyplugh')).toEqual({
+      category: 'needs',
+      subcategory: 'Xyzzyplugh',
+      matched: false,
+    });
+  });
+
+  it('lets an exact match on a later token win over a fuzzy match on an earlier one', () => {
+    expect(detectCategory('grocry coffee')).toEqual({
+      category: 'wants',
+      subcategory: 'Dining',
+      matched: true,
+    });
+  });
+
+  it('prefers the learned map over the seed map for a fuzzy candidate', () => {
+    const learned = { grocery: { category: 'savings' as const, subcategory: 'Custom' } };
+    expect(detectCategory('grocry', learned)).toEqual({
+      category: 'savings',
+      subcategory: 'Custom',
+      matched: true,
+    });
+  });
+
+  it('never fuzzy-matches a token shorter than 3 characters', () => {
+    expect(detectCategory('ab')).toEqual({
+      category: 'needs',
+      subcategory: 'Ab',
+      matched: false,
+    });
+  });
+});
+
 describe('learnKey', () => {
   it('extracts the first meaningful token, lowercased', () => {
     expect(learnKey('Gymbox Membership')).toBe('gymbox');
