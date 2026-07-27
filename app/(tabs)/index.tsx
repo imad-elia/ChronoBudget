@@ -150,6 +150,7 @@ const rowStyles = StyleSheet.create({
 
 function LimitsModal({ visible, onClose, onSave }: { visible: boolean; onClose: () => void; onSave: () => void }) {
   const limits = useBudgetStore((s) => s.limits);
+  const symbol = useBudgetStore((s) => s.symbol);
   const [drafts, setDrafts] = useState({
     needs:   limits.needs   > 0 ? String(limits.needs)   : '',
     wants:   limits.wants   > 0 ? String(limits.wants)   : '',
@@ -197,7 +198,7 @@ function LimitsModal({ visible, onClose, onSave }: { visible: boolean; onClose: 
               <View style={[modalStyles.dot, { backgroundColor: cat.color }]} />
               <Text style={[modalStyles.label, { color: cat.color }]}>{t(cat.labelKey)}</Text>
               <View style={[modalStyles.inputWrap, { borderColor: drafts[cat.id] ? `${cat.color}60` : theme.colors.border }]}>
-                <Text style={[modalStyles.prefix, { color: cat.color }]}>$</Text>
+                <Text style={[modalStyles.prefix, { color: cat.color }]}>{symbol}</Text>
                 <TextInput
                   style={modalStyles.input}
                   placeholder={t('dashboard.noLimit')}
