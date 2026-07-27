@@ -109,6 +109,26 @@ describe('transactions CRUD', () => {
   });
 });
 
+describe('fetchCategoryTotals (month-scoped)', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('defaults to the current month, excluding prior months, but includes all-time when passed null', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(new Date(2026, 5, 15).getTime()); // 2026-06-15
+    await database.insertTransaction(30, 'needs', 'Groceries', '');
+
+    jest.spyOn(Date, 'now').mockReturnValue(new Date(2026, 6, 1).getTime()); // 2026-07-01
+    await database.insertTransaction(20, 'needs', 'Groceries', '');
+
+    const currentMonthTotals = await database.fetchCategoryTotals();
+    expect(currentMonthTotals.needs).toBe(20);
+
+    const allTimeTotals = await database.fetchCategoryTotals(null);
+    expect(allTimeTotals.needs).toBe(50);
+  });
+});
+
 describe('learned keywords', () => {
   it('learns a keyword, increments count on repeat, and can be deleted', async () => {
     await database.learnKeyword('Gymbox', 'wants', 'Entertainment');
@@ -155,7 +175,7 @@ describe('processRecurring (catch-up posting)', () => {
     // Occurrences at Mar 15, Apr 15, May 15, Jun 15 are all <= "now" (Jul 1).
     expect(inserted).toBe(4);
 
-    const totals = await database.fetchCategoryTotals();
+    const totals = await database.fetchCategoryTotals(null);
     expect(totals.needs).toBe(50 * 4);
 
     const [updatedRule] = await database.fetchRecurring();

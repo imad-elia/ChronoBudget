@@ -111,7 +111,7 @@ Migration strategy: incremental `if (user_version < N)` blocks in `initDb()`. v1
 | `setSetting(key, value)` | Upsert into app_settings |
 | `insertTransaction(amount, category, subcategory, note)` | Insert row |
 | `deleteTransaction(id)` | Delete by id |
-| `fetchCategoryTotals()` | SUM per category |
+| `fetchCategoryTotals(monthKey?)` | SUM per category, scoped to current month by default (`monthKey` defaults to `currentMonthKey()`); pass `null` for all-time |
 | `fetchRecentTransactions(limit)` | Latest N rows |
 | `fetchTransactions(limit, category?)` | Filtered fetch for History screen |
 | `fetchLimits()` | All rows from budget_limits |

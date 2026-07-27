@@ -241,12 +241,26 @@ export async function deleteTransaction(id: number): Promise<void> {
   await database.runAsync('DELETE FROM transactions WHERE id = ?', id);
 }
 
-export async function fetchCategoryTotals(): Promise<CategoryTotals> {
+// monthKey defaults to the current month ('YYYY-MM'); pass null for all-time.
+export function currentMonthKey(): string {
+  const now = new Date(Date.now());
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+export async function fetchCategoryTotals(
+  monthKey: string | null = currentMonthKey(),
+): Promise<CategoryTotals> {
   const database = await getDb();
   const rows = await database.getAllAsync<{ category: Category; total: number }>(
-    `SELECT category, COALESCE(SUM(amount), 0) AS total
-     FROM transactions
-     GROUP BY category`,
+    monthKey
+      ? `SELECT category, COALESCE(SUM(amount), 0) AS total
+         FROM transactions
+         WHERE strftime('%Y-%m', datetime(timestamp / 1000, 'unixepoch', 'localtime')) = ?
+         GROUP BY category`
+      : `SELECT category, COALESCE(SUM(amount), 0) AS total
+         FROM transactions
+         GROUP BY category`,
+    ...(monthKey ? [monthKey] : []),
   );
   const totals: CategoryTotals = { needs: 0, wants: 0, savings: 0 };
   for (const row of rows) {

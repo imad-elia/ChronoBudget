@@ -3,7 +3,7 @@
 // grouped by screen/feature. Values may contain {placeholders} for t(key, vars).
 export const en = {
   // Dashboard
-  'dashboard.totalSpent': 'Total Spent',
+  'dashboard.totalSpent': 'Spent This Month',
   'dashboard.settings': 'Settings',
   'dashboard.limits': 'Limits',
 

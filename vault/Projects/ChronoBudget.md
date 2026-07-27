@@ -33,15 +33,14 @@ Offline-first mobile expense tracker built for OLED dark-mode phones. Users log 
 - Edit transaction: tap any row (dashboard or history) to open a full edit modal (amount/category/subcategory/note + delete). See [[2026-07-21-session]].
 - Starting balances: optional per-category one-time balances (onboarding step + Settings); BentoCards show "left" (Remaining = balance − spent, magenta when negative). Schema v6 `category_balance` — see [[category-balance-schema]].
 - iOS build: verified working on iOS Simulator (iPhone 17 Pro, iOS 26.5) via macOS 13 VM (Intel, Xcode 26.5). `ios.bundleIdentifier` set in `app.json`. Onboarding country picker redesigned as a bounded table panel; native-only flex-collapse bug fixed. See [[2026-07-03-session]].
-- Automated tests: `jest-expo` + `@testing-library/react-native`, run via `npm test` (84 tests across 10 suites). Covers `lib/detectCategory.ts`, `lib/recurrence.ts`, `lib/format.ts`, `store/useBudgetStore.ts`, `components/BentoCard.tsx`/`ExpenseInput.tsx`/`EditTransactionModal.tsx`/`RecurringModal.tsx`/`KeywordsModal.tsx`, and `db/database.ts` (schema migrations + idempotency, CRUD, `processRecurring`) against a `sql.js`-backed mock of `expo-sqlite`. Plus 3 Playwright E2E specs (`e2e/`) driving the Expo web build end-to-end (onboarding, add/edit/delete a transaction, History/Trends navigation). CI (`.github/workflows/ci.yml`) runs the unit suite + `tsc --noEmit` + the E2E suite (parallel jobs) on every push/PR to `main`. See [[testing-strategy]] — no open testing gaps currently.
+- Automated tests: `jest-expo` + `@testing-library/react-native`, run via `npm test` (85 tests across 10 suites). Covers `lib/detectCategory.ts`, `lib/recurrence.ts`, `lib/format.ts`, `store/useBudgetStore.ts`, `components/BentoCard.tsx`/`ExpenseInput.tsx`/`EditTransactionModal.tsx`/`RecurringModal.tsx`/`KeywordsModal.tsx`, and `db/database.ts` (schema migrations + idempotency, CRUD, `processRecurring`) against a `sql.js`-backed mock of `expo-sqlite`. Plus 3 Playwright E2E specs (`e2e/`) driving the Expo web build end-to-end (onboarding, add/edit/delete a transaction, History/Trends navigation). CI (`.github/workflows/ci.yml`) runs the unit suite + `tsc --noEmit` + the E2E suite (parallel jobs) on every push/PR to `main`. See [[testing-strategy]] — no open testing gaps currently.
+- Dashboard totals are month-scoped: `fetchCategoryTotals()` in `db/database.ts` now defaults to the current month (`currentMonthKey()`, using `strftime(..., 'localtime')` to stay consistent with JS's local-time month key), with `fetchCategoryTotals(null)` for all-time. Header label changed from "Total Spent" to "Spent This Month". Fixed 2026-07-27.
 
 ## Known issues
 
 See [[open-issues]].
 
 ## Next steps
-
-- Month-scoped dashboard totals ("Total Spent" is currently all-time) — highest-value budgeting improvement.
 
 - Full UI translation: string structure is ready ([[localization]]); add locale files (e.g. `fr.ts`) when desired.
 - Recurring: optional custom start date (rules currently anchor to creation day). See [[recurring-transactions]].
