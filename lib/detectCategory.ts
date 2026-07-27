@@ -1,5 +1,6 @@
 import type { Category } from '../store/useBudgetStore';
-import { KEYWORD_MAP, type KeywordTarget } from '../constants/keywordMap';
+import { getActiveKeywordMap, type KeywordTarget } from '../constants/keywordMap';
+import { getActiveLocale } from './i18n';
 
 // Map of user-learned keywords → target, loaded from SQLite (keyword_learn).
 export type LearnedMap = Record<string, KeywordTarget>;
@@ -49,6 +50,23 @@ export function parseEntry(raw: string): ParsedEntry {
   return { amount, description: descTokens.join(' ') };
 }
 
+/**
+ * Strip diacritics (é→e, à→a, ç→c, ...) so accented input matches the
+ * unaccented dictionary keys used by constants/keywords/fr.ts (and any future
+ * accented-language dictionary), regardless of whether the user typed the
+ * accent.
+ */
+function stripDiacritics(input: string): string {
+  return input.normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+function tokenize(desc: string): string[] {
+  return stripDiacritics(desc.toLowerCase())
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
 function titleCase(input: string): string {
   return input
     .split(/\s+/)
@@ -64,7 +82,7 @@ function titleCase(input: string): string {
  * and plain -s/-es plurals. Order doesn't matter here — all candidates are
  * tried and the caller stops at the first dictionary hit.
  */
-function stemCandidates(token: string): string[] {
+function stemCandidatesEn(token: string): string[] {
   const candidates: string[] = [];
   if (token.endsWith('ies') && token.length - 3 >= 3) {
     candidates.push(token.slice(0, -3) + 'y');
@@ -80,6 +98,32 @@ function stemCandidates(token: string): string[] {
     candidates.push(token.slice(0, -1));
   }
   return candidates;
+}
+
+/**
+ * French suffix variants: plain -s/-x plurals ("factures" → "facture"),
+ * feminine -e ("etudiante" → "etudiant"), and common verb endings
+ * ("mangeons"-style -ez/-ent conjugations reduced toward their stem).
+ */
+function stemCandidatesFr(token: string): string[] {
+  const candidates: string[] = [];
+  if ((token.endsWith('s') || token.endsWith('x')) && token.length - 1 >= 3) {
+    candidates.push(token.slice(0, -1));
+  }
+  if (token.endsWith('ent') && token.length - 3 >= 3) {
+    candidates.push(token.slice(0, -3));
+  }
+  if (token.endsWith('ez') && token.length - 2 >= 3) {
+    candidates.push(token.slice(0, -2) + 'er');
+  }
+  if (token.endsWith('e') && token.length - 1 >= 3) {
+    candidates.push(token.slice(0, -1));
+  }
+  return candidates;
+}
+
+function stemCandidates(token: string): string[] {
+  return getActiveLocale() === 'fr' ? stemCandidatesFr(token) : stemCandidatesEn(token);
 }
 
 /** Bounded Levenshtein distance check — returns false early if a match at `maxDistance` is impossible. */
@@ -117,8 +161,10 @@ function withinLevenshtein(a: string, b: string, maxDistance: number): boolean {
 function fuzzyLookup(token: string, learned: LearnedMap): KeywordTarget | undefined {
   if (token.length < 3) return undefined;
 
+  const keywordMap = getActiveKeywordMap();
+
   for (const stem of stemCandidates(token)) {
-    const hit = learned[stem] ?? KEYWORD_MAP[stem];
+    const hit = learned[stem] ?? keywordMap[stem];
     if (hit) return hit;
   }
 
@@ -126,8 +172,8 @@ function fuzzyLookup(token: string, learned: LearnedMap): KeywordTarget | undefi
   for (const key of Object.keys(learned)) {
     if (withinLevenshtein(token, key, maxDistance)) return learned[key];
   }
-  for (const key of Object.keys(KEYWORD_MAP)) {
-    if (withinLevenshtein(token, key, maxDistance)) return KEYWORD_MAP[key];
+  for (const key of Object.keys(keywordMap)) {
+    if (withinLevenshtein(token, key, maxDistance)) return keywordMap[key];
   }
 
   return undefined;
@@ -155,14 +201,12 @@ export function detectCategory(description: string, learned: LearnedMap = {}): D
     return { category: DEFAULT_CATEGORY, subcategory: '', matched: false };
   }
 
-  const tokens = desc
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-    .split(/\s+/)
-    .filter(Boolean);
+  const tokens = tokenize(desc);
+
+  const keywordMap = getActiveKeywordMap();
 
   for (const token of tokens) {
-    const hit = learned[token] ?? KEYWORD_MAP[token];
+    const hit = learned[token] ?? keywordMap[token];
     if (hit) {
       return { category: hit.category, subcategory: hit.subcategory, matched: true };
     }
@@ -183,10 +227,6 @@ export function detectCategory(description: string, learned: LearnedMap = {}): D
  * token of the description (lowercased, punctuation-stripped).
  */
 export function learnKey(description: string): string {
-  const tokens = (description ?? '')
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-    .split(/\s+/)
-    .filter(Boolean);
+  const tokens = tokenize(description ?? '');
   return tokens[0] ?? '';
 }

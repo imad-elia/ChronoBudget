@@ -1,4 +1,5 @@
 import { parseEntry, detectCategory, learnKey } from '../detectCategory';
+import { setActiveLocale } from '../i18n';
 
 describe('parseEntry', () => {
   it('parses "amount description"', () => {
@@ -137,6 +138,51 @@ describe('detectCategory — fuzzy/stemming fallback', () => {
       category: 'needs',
       subcategory: 'Ab',
       matched: false,
+    });
+  });
+});
+
+describe('detectCategory — French dictionary', () => {
+  beforeEach(() => setActiveLocale('fr-FR'));
+  afterEach(() => setActiveLocale('en-US'));
+
+  it('matches a French seed keyword', () => {
+    expect(detectCategory('boulangerie')).toEqual({
+      category: 'needs',
+      subcategory: 'Groceries',
+      matched: true,
+    });
+  });
+
+  it('matches an accented French word against its unaccented dictionary key', () => {
+    expect(detectCategory('café')).toEqual({
+      category: 'wants',
+      subcategory: 'Dining',
+      matched: true,
+    });
+  });
+
+  it('parses "amount description" with an amount before a French description', () => {
+    expect(detectCategory('12 boulangerie')).toEqual({
+      category: 'needs',
+      subcategory: 'Groceries',
+      matched: true,
+    });
+  });
+
+  it('resolves a French plural via stemming ("factures" → "facture")', () => {
+    expect(detectCategory('factures')).toEqual({
+      category: 'needs',
+      subcategory: 'Bills',
+      matched: true,
+    });
+  });
+
+  it('resolves a simple French -s plural via stemming ("epiceries" → "epicerie")', () => {
+    expect(detectCategory('epiceries')).toEqual({
+      category: 'needs',
+      subcategory: 'Groceries',
+      matched: true,
     });
   });
 });

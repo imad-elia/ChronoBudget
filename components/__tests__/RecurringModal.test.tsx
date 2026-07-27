@@ -75,6 +75,7 @@ describe('RecurringModal — add flow', () => {
         subcategory: 'Groceries',
         note: '',
         frequency: 'monthly',
+        accountId: null,
       });
     });
     expect(db.processRecurring).toHaveBeenCalled();
@@ -132,6 +133,7 @@ describe('RecurringModal — edit flow', () => {
         subcategory: 'Rent',
         note: '',
         frequency: 'monthly',
+        accountId: null,
       });
     });
     expect(db.insertRecurring).not.toHaveBeenCalled();

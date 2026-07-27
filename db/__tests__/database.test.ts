@@ -16,7 +16,7 @@ describe('schema migration', () => {
   it('migrates a fresh DB to the latest schema version with all tables', async () => {
     const conn = await database.getDb();
     const [{ user_version }] = await conn.getAllAsync<{ user_version: number }>('PRAGMA user_version');
-    expect(user_version).toBe(6);
+    expect(user_version).toBe(7);
 
     const tables = await conn.getAllAsync<{ name: string }>(
       "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",
@@ -30,6 +30,8 @@ describe('schema migration', () => {
         'keyword_learn',
         'recurring',
         'category_balance',
+        'accounts',
+        'transfers',
       ]),
     );
   });
@@ -52,7 +54,7 @@ describe('migration idempotency', () => {
 
     const conn = await database.getDb();
     const [{ user_version }] = await conn.getAllAsync<{ user_version: number }>('PRAGMA user_version');
-    expect(user_version).toBe(6);
+    expect(user_version).toBe(7);
 
     const totals = await database.fetchCategoryTotals();
     expect(totals.needs).toBe(20);
@@ -182,6 +184,34 @@ describe('processRecurring (catch-up posting)', () => {
     const expectedNextRun = advance(advance(advance(advance(pastNextRun, 'monthly'), 'monthly'), 'monthly'), 'monthly');
     expect(updatedRule.nextRun).toBe(expectedNextRun);
   });
+
+  it('debits the tagged account balance once per posted occurrence', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(NOW);
+
+    await database.insertAccount('Checking', 500);
+    const [account] = await database.fetchAccounts();
+
+    await database.insertRecurring({
+      amount: 50,
+      category: 'needs',
+      subcategory: 'Rent',
+      note: '',
+      frequency: 'monthly',
+      accountId: account.id,
+    });
+    const [rule] = await database.fetchRecurring();
+    expect(rule.accountId).toBe(account.id);
+
+    const pastNextRun = new Date(2026, 2, 15, 12, 0, 0).getTime();
+    const conn = await database.getDb();
+    await conn.runAsync('UPDATE recurring SET next_run = ? WHERE id = ?', pastNextRun, rule.id);
+
+    const inserted = await database.processRecurring();
+    expect(inserted).toBe(4);
+
+    const [after] = await database.fetchAccounts();
+    expect(after.balance).toBe(500 - 50 * 4);
+  });
 });
 
 describe('insertRecurring (custom start date)', () => {
@@ -246,6 +276,48 @@ describe('insertRecurring (custom start date)', () => {
   });
 });
 
+describe('recurring account tagging', () => {
+  it('round-trips accountId through insert, fetch, and update', async () => {
+    await database.insertAccount('Checking', 100);
+    await database.insertAccount('Savings', 100);
+    const [checking, savings] = await database.fetchAccounts();
+
+    await database.insertRecurring({
+      amount: 10,
+      category: 'needs',
+      subcategory: 'Rent',
+      note: '',
+      frequency: 'monthly',
+      accountId: checking.id,
+    });
+    const [rule] = await database.fetchRecurring();
+    expect(rule.accountId).toBe(checking.id);
+
+    await database.updateRecurring(rule.id, {
+      amount: 10,
+      category: 'needs',
+      subcategory: 'Rent',
+      note: '',
+      frequency: 'monthly',
+      accountId: savings.id,
+    });
+    const [updated] = await database.fetchRecurring();
+    expect(updated.accountId).toBe(savings.id);
+  });
+
+  it('defaults accountId to null when omitted', async () => {
+    await database.insertRecurring({
+      amount: 10,
+      category: 'needs',
+      subcategory: 'Rent',
+      note: '',
+      frequency: 'monthly',
+    });
+    const [rule] = await database.fetchRecurring();
+    expect(rule.accountId).toBeNull();
+  });
+});
+
 describe('fetchMonthlyTotals', () => {
   it('buckets totals by month and fills zero for months with no activity', async () => {
     const now = new Date();
@@ -264,5 +336,126 @@ describe('fetchMonthlyTotals', () => {
       expect(m.wants).toBe(0);
       expect(m.savings).toBe(0);
     }
+  });
+});
+
+describe('insertTransactionsBulk', () => {
+  it('inserts every row in one pass', async () => {
+    await database.insertTransactionsBulk([
+      { amount: 10, category: 'needs', subcategory: 'Groceries', note: '', timestamp: 1 },
+      { amount: 20, category: 'wants', subcategory: 'Dining', note: 'lunch', timestamp: 2 },
+    ]);
+    const totals = await database.fetchCategoryTotals(null);
+    expect(totals.needs).toBe(10);
+    expect(totals.wants).toBe(20);
+  });
+
+  it('is a no-op for an empty list', async () => {
+    await expect(database.insertTransactionsBulk([])).resolves.toBeUndefined();
+    const totals = await database.fetchCategoryTotals(null);
+    expect(totals.needs + totals.wants + totals.savings).toBe(0);
+  });
+});
+
+describe('accounts', () => {
+  it('inserts an account with an initial balance and fetches it back', async () => {
+    await database.insertAccount('Checking', 100);
+    const [account] = await database.fetchAccounts();
+    expect(account).toMatchObject({ name: 'Checking', balance: 100 });
+  });
+
+  it('renames an account without touching its balance', async () => {
+    await database.insertAccount('Checking', 100);
+    const [account] = await database.fetchAccounts();
+    await database.updateAccount(account.id, 'Main Checking');
+    const [renamed] = await database.fetchAccounts();
+    expect(renamed).toMatchObject({ name: 'Main Checking', balance: 100 });
+  });
+
+  it('debits the account balance when a transaction is tagged with it', async () => {
+    await database.insertAccount('Checking', 100);
+    const [account] = await database.fetchAccounts();
+    await database.insertTransaction(30, 'needs', 'Groceries', '', account.id);
+    const [after] = await database.fetchAccounts();
+    expect(after.balance).toBe(70);
+  });
+
+  it('reverses the old amount and applies the new one when a tagged transaction is updated', async () => {
+    await database.insertAccount('Checking', 100);
+    const [account] = await database.fetchAccounts();
+    await database.insertTransaction(30, 'needs', 'Groceries', '', account.id);
+    const [tx] = await database.fetchTransactions();
+
+    await database.updateTransaction(tx.id, {
+      amount: 50,
+      category: 'needs',
+      subcategory: 'Groceries',
+      note: '',
+      accountId: account.id,
+    });
+
+    const [after] = await database.fetchAccounts();
+    expect(after.balance).toBe(50); // 100 - 30 reversed (+30) then - 50
+  });
+
+  it('credits the account balance back when a tagged transaction is deleted', async () => {
+    await database.insertAccount('Checking', 100);
+    const [account] = await database.fetchAccounts();
+    await database.insertTransaction(30, 'needs', 'Groceries', '', account.id);
+    const [tx] = await database.fetchTransactions();
+
+    await database.deleteTransaction(tx.id);
+
+    const [after] = await database.fetchAccounts();
+    expect(after.balance).toBe(100);
+  });
+
+  it('refuses to delete an account still referenced by a transaction', async () => {
+    await database.insertAccount('Checking', 100);
+    const [account] = await database.fetchAccounts();
+    await database.insertTransaction(30, 'needs', 'Groceries', '', account.id);
+
+    const deleted = await database.deleteAccount(account.id);
+    expect(deleted).toBe(false);
+    expect(await database.fetchAccounts()).toHaveLength(1);
+  });
+
+  it('deletes an account with no references', async () => {
+    await database.insertAccount('Empty', 0);
+    const [account] = await database.fetchAccounts();
+
+    const deleted = await database.deleteAccount(account.id);
+    expect(deleted).toBe(true);
+    expect(await database.fetchAccounts()).toHaveLength(0);
+  });
+});
+
+describe('transfers', () => {
+  it('moves money between two accounts atomically', async () => {
+    await database.insertAccount('Checking', 100);
+    await database.insertAccount('Savings', 50);
+    const [checking, savings] = await database.fetchAccounts();
+
+    await database.insertTransfer(checking.id, savings.id, 40, 'Move to savings');
+
+    const accounts = await database.fetchAccounts();
+    expect(accounts.find((a) => a.id === checking.id)!.balance).toBe(60);
+    expect(accounts.find((a) => a.id === savings.id)!.balance).toBe(90);
+
+    const [transfer] = await database.fetchTransfers();
+    expect(transfer).toMatchObject({ fromAccount: checking.id, toAccount: savings.id, amount: 40 });
+  });
+
+  it('does not affect category totals (transfers live outside the transactions table)', async () => {
+    await database.insertAccount('Checking', 100);
+    await database.insertAccount('Savings', 50);
+    const [checking, savings] = await database.fetchAccounts();
+
+    await database.insertTransfer(checking.id, savings.id, 40, '');
+
+    const totals = await database.fetchCategoryTotals(null);
+    expect(totals.needs).toBe(0);
+    expect(totals.wants).toBe(0);
+    expect(totals.savings).toBe(0);
   });
 });

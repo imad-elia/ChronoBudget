@@ -11,11 +11,12 @@ import {
   StyleSheet,
 } from 'react-native';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
-import { useBudgetStore, COUNTRIES, type Category } from '../store/useBudgetStore';
+import { useBudgetStore, COUNTRIES, SUPPORTED_LANGUAGES, type Category, type SupportedLanguage } from '../store/useBudgetStore';
 import { theme } from '../theme';
 import { t } from '../lib/i18n';
 import { setBalance, fetchBalances } from '../db/database';
 import { KeywordsModal } from './KeywordsModal';
+import { AccountsModal } from './AccountsModal';
 
 const BALANCE_CATEGORIES: { id: Category; color: string }[] = [
   { id: 'needs',   color: '#00FF87' },
@@ -29,9 +30,18 @@ const CATEGORY_LABEL_KEY = {
   savings: 'category.savings',
 } as const;
 
+// Native display names (not translated — a language's own name stays legible
+// regardless of which language is currently active).
+const LANGUAGE_LABEL: Record<SupportedLanguage, string> = {
+  en: 'English',
+  fr: 'Français',
+};
+
 export function SettingsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const country = useBudgetStore((s) => s.country);
   const setCountry = useBudgetStore((s) => s.setCountry);
+  const language = useBudgetStore((s) => s.language);
+  const setLanguage = useBudgetStore((s) => s.setLanguage);
   const symbol = useBudgetStore((s) => s.symbol);
   const balances = useBudgetStore((s) => s.balances);
 
@@ -39,6 +49,7 @@ export function SettingsModal({ visible, onClose }: { visible: boolean; onClose:
     needs: '', wants: '', savings: '',
   });
   const [keywordsOpen, setKeywordsOpen] = useState(false);
+  const [accountsOpen, setAccountsOpen] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -92,6 +103,27 @@ export function SettingsModal({ visible, onClose }: { visible: boolean; onClose:
             })}
           </ScrollView>
 
+          <Text style={styles.sectionLabel}>{t('settings.language')}</Text>
+          <Text style={styles.balancesHint}>{t('settings.languageHint')}</Text>
+          <View style={styles.languageRow}>
+            {SUPPORTED_LANGUAGES.map((lang) => {
+              const active = lang === language;
+              return (
+                <TouchableOpacity
+                  key={lang}
+                  style={[styles.languageChip, active && styles.languageChipActive]}
+                  onPress={() => setLanguage(lang)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.languageChipLabel, active && styles.languageChipLabelActive]}>
+                    {LANGUAGE_LABEL[lang]}
+                  </Text>
+                  {active && <Icon name="check" size={14} color="#00FF87" />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
           <Text style={styles.sectionLabel}>{t('settings.balances')}</Text>
           <Text style={styles.balancesHint}>{t('settings.balancesHint')}</Text>
           {BALANCE_CATEGORIES.map((cat) => (
@@ -114,6 +146,12 @@ export function SettingsModal({ visible, onClose }: { visible: boolean; onClose:
             </View>
           ))}
 
+          <TouchableOpacity style={styles.keywordsRow} onPress={() => setAccountsOpen(true)} activeOpacity={0.7}>
+            <Icon name="bank-outline" size={16} color={theme.colors.textSecondary} />
+            <Text style={styles.keywordsLabel}>{t('settings.accounts')}</Text>
+            <Icon name="chevron-right" size={16} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.keywordsRow} onPress={() => setKeywordsOpen(true)} activeOpacity={0.7}>
             <Icon name="tag-multiple-outline" size={16} color={theme.colors.textSecondary} />
             <Text style={styles.keywordsLabel}>{t('settings.keywords')}</Text>
@@ -127,6 +165,7 @@ export function SettingsModal({ visible, onClose }: { visible: boolean; onClose:
       </KeyboardAvoidingView>
 
       <KeywordsModal visible={keywordsOpen} onClose={() => setKeywordsOpen(false)} />
+      <AccountsModal visible={accountsOpen} onClose={() => setAccountsOpen(false)} />
     </Modal>
   );
 }
@@ -189,6 +228,21 @@ const styles = StyleSheet.create({
   countryNameActive: { color: theme.colors.textPrimary },
   currencyCode: { ...theme.typography.bodyMedium, color: theme.colors.textMuted },
   check: { marginLeft: theme.spacing.xs },
+  languageRow: { flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.sm },
+  languageChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: theme.spacing.md,
+    height: 40,
+  },
+  languageChipActive: { borderColor: '#00FF87', backgroundColor: 'rgba(0,255,135,0.08)' },
+  languageChipLabel: { ...theme.typography.bodyMedium, color: theme.colors.textSecondary },
+  languageChipLabelActive: { color: theme.colors.textPrimary },
   keywordsRow: {
     flexDirection: 'row',
     alignItems: 'center',

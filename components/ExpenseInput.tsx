@@ -41,6 +41,7 @@ export function ExpenseInput() {
   const [note, setNote] = useState('');        // detailed-mode note
   const [category, setCategory] = useState<Category>('needs');
   const [subcategory, setSubcategory] = useState('');
+  const [accountId, setAccountId] = useState<number | null>(null);
   const [customSubcategory, setCustomSubcategory] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [overridden, setOverridden] = useState(false);
@@ -55,6 +56,7 @@ export function ExpenseInput() {
   const triggerRefresh = useBudgetStore((s) => s.triggerRefresh);
   const learned = useBudgetStore((s) => s.learnedKeywords);
   const symbol = useBudgetStore((s) => s.symbol);
+  const accounts = useBudgetStore((s) => s.accounts);
   const activeColor = CATEGORIES.find((c) => c.id === category)!.color;
 
   // Description that feeds the classifier: parsed out of the smart field in
@@ -95,6 +97,7 @@ export function ExpenseInput() {
     setShowCustomInput(false);
     setOverridden(false);
     setShowOverride(false);
+    setAccountId(null);
   }
 
   function switchMode(m: InputMode) {
@@ -159,6 +162,7 @@ export function ExpenseInput() {
         category,
         resolvedSub,
         mode === 'detailed' ? note : '',
+        accountId,
       );
 
       // Learn from corrections and confirmed no-matches so the guess improves
@@ -237,6 +241,42 @@ export function ExpenseInput() {
       </TouchableOpacity>
     </ScrollView>
   );
+
+  // Optional account tag. Hidden entirely when no accounts exist yet, so
+  // users who never set one up see no change to the input.
+  const renderAccountChips = () => {
+    if (accounts.length === 0) return null;
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.subRow}
+        keyboardShouldPersistTaps="handled"
+      >
+        <TouchableOpacity
+          style={[styles.subChip, accountId === null && { borderColor: activeColor, backgroundColor: `${activeColor}18` }]}
+          onPress={() => setAccountId(null)}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.subLabel, { color: accountId === null ? activeColor : theme.colors.textMuted }]}>{t('input.noAccount')}</Text>
+        </TouchableOpacity>
+        {accounts.map((a) => {
+          const active = accountId === a.id;
+          return (
+            <TouchableOpacity
+              key={a.id}
+              style={[styles.subChip, active && { borderColor: activeColor, backgroundColor: `${activeColor}18` }]}
+              onPress={() => setAccountId(a.id)}
+              activeOpacity={0.7}
+            >
+              <Icon name="bank-outline" size={11} color={active ? activeColor : theme.colors.textMuted} />
+              <Text style={[styles.subLabel, { color: active ? activeColor : theme.colors.textMuted }]}>{a.name}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    );
+  };
 
   // Live "goes to" preview shown once the user has typed something.
   const renderPreview = () => {
@@ -320,6 +360,7 @@ export function ExpenseInput() {
             <>
               {renderCategoryChips()}
               {renderSubcategoryChips()}
+              {renderAccountChips()}
               {showCustomInput && (
                 <View style={[styles.inputWrapper, { borderColor: `${activeColor}40` }]}>
                   <Icon name="tag-outline" size={15} color={theme.colors.textMuted} style={styles.noteIcon} />
@@ -366,6 +407,9 @@ export function ExpenseInput() {
 
           {/* Subcategory chips */}
           {renderSubcategoryChips()}
+
+          {/* Account chips (hidden when no accounts exist) */}
+          {renderAccountChips()}
 
           {/* Custom subcategory input */}
           {showCustomInput && (

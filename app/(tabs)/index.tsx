@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  ScrollView,
 } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -26,6 +27,7 @@ import { ExpenseInput } from '../../components/ExpenseInput';
 import { OnboardingOverlay } from '../../components/OnboardingOverlay';
 import { SettingsModal } from '../../components/SettingsModal';
 import { RecurringModal } from '../../components/RecurringModal';
+import { AccountsModal } from '../../components/AccountsModal';
 import { EditTransactionModal } from '../../components/EditTransactionModal';
 import {
   initDb,
@@ -35,6 +37,7 @@ import {
   fetchLimits,
   setLimit,
   fetchBalances,
+  fetchAccounts,
   getSetting,
   processRecurring,
 } from '../../db/database';
@@ -276,9 +279,10 @@ const modalStyles = StyleSheet.create({
 
 // ─── Dashboard header ─────────────────────────────────────────────────────────
 
-function DashboardHeader({ totals, onOpenLimits, onOpenSettings, onOpenRecurring, topInset }: { totals: CategoryTotals; onOpenLimits: () => void; onOpenSettings: () => void; onOpenRecurring: () => void; topInset: number }) {
+function DashboardHeader({ totals, onOpenLimits, onOpenSettings, onOpenRecurring, onOpenAccounts, topInset }: { totals: CategoryTotals; onOpenLimits: () => void; onOpenSettings: () => void; onOpenRecurring: () => void; onOpenAccounts: () => void; topInset: number }) {
   const limits = useBudgetStore((s) => s.limits);
   const balances = useBudgetStore((s) => s.balances);
+  const accounts = useBudgetStore((s) => s.accounts);
   // Subscribe to currency so the header re-renders when the user changes country.
   useBudgetStore((s) => s.currency);
   const total = totals.needs + totals.wants + totals.savings;
@@ -319,6 +323,30 @@ function DashboardHeader({ totals, onOpenLimits, onOpenSettings, onOpenRecurring
           />
         ))}
       </View>
+
+      {accounts.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={headerStyles.accountsRow}
+        >
+          {accounts.map((a) => (
+            <TouchableOpacity
+              key={a.id}
+              style={headerStyles.accountCard}
+              onPress={onOpenAccounts}
+              activeOpacity={0.7}
+            >
+              <Icon name="bank-outline" size={13} color={theme.colors.textMuted} />
+              <Text style={headerStyles.accountName} numberOfLines={1}>{a.name}</Text>
+              <Text style={[headerStyles.accountBalance, a.balance < 0 && headerStyles.accountBalanceNegative]}>
+                {formatCurrency(a.balance)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+
       <Text style={headerStyles.sectionLabel}>{t('dashboard.recent')}</Text>
     </View>
   );
@@ -335,6 +363,21 @@ const headerStyles = StyleSheet.create({
   balance: { ...theme.typography.displayLarge, color: theme.colors.textPrimary, textAlign: 'center' },
   grid: { flexDirection: 'row', gap: 10, marginBottom: theme.spacing.lg },
   sectionLabel: { ...theme.typography.labelLarge, color: theme.colors.textMuted, marginBottom: theme.spacing.sm },
+  accountsRow: { gap: theme.spacing.sm, paddingBottom: theme.spacing.md },
+  accountCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: theme.spacing.md,
+    height: 36,
+  },
+  accountName: { ...theme.typography.labelSmall, color: theme.colors.textSecondary, maxWidth: 100 },
+  accountBalance: { ...theme.typography.labelSmall, color: theme.colors.textMuted, fontWeight: '600' },
+  accountBalanceNegative: { color: '#FF2D78' },
 });
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
@@ -362,6 +405,7 @@ export default function DashboardScreen() {
   const [limitsOpen, setLimitsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [recurringOpen, setRecurringOpen] = useState(false);
+  const [accountsOpen, setAccountsOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
 
@@ -399,6 +443,7 @@ export default function DashboardScreen() {
     fetchRecentTransactions(30).then(setTransactions);
     fetchLimits().then((l) => useBudgetStore.getState().setLimits(l));
     fetchBalances().then((b) => useBudgetStore.getState().setBalances(b));
+    fetchAccounts().then((a) => useBudgetStore.getState().setAccounts(a));
   }, [refreshCounter, dbReady]);
 
   const handleDelete = useCallback(async (id: number) => {
@@ -423,7 +468,7 @@ export default function DashboardScreen() {
           keyExtractor={(item) => String(item.id)}
           renderItem={renderItem}
           ListHeaderComponent={
-            <DashboardHeader totals={totals} onOpenLimits={() => setLimitsOpen(true)} onOpenSettings={() => setSettingsOpen(true)} onOpenRecurring={() => setRecurringOpen(true)} topInset={insets.top} />
+            <DashboardHeader totals={totals} onOpenLimits={() => setLimitsOpen(true)} onOpenSettings={() => setSettingsOpen(true)} onOpenRecurring={() => setRecurringOpen(true)} onOpenAccounts={() => setAccountsOpen(true)} topInset={insets.top} />
           }
           ListEmptyComponent={<EmptyState />}
           contentContainerStyle={[screenStyles.listContent, { paddingBottom: insets.bottom + 16 }]}
@@ -451,6 +496,11 @@ export default function DashboardScreen() {
       <RecurringModal
         visible={recurringOpen}
         onClose={() => setRecurringOpen(false)}
+      />
+
+      <AccountsModal
+        visible={accountsOpen}
+        onClose={() => setAccountsOpen(false)}
       />
 
       <EditTransactionModal

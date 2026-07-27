@@ -35,6 +35,11 @@ export const en = {
   'history.emptyHintAll': 'Add your first expense on the Dashboard.',
   'history.emptyHintFiltered': 'No {category} transactions yet.',
   'history.export': 'Export',
+  'history.import': 'Import',
+  'history.importSuccess': 'Imported {count} transactions.',
+  'history.importSuccessSkipped': 'Imported {count} transactions, skipped {skipped}.',
+  'history.importEmpty': 'No valid transactions found in that file.',
+  'history.importError': 'Could not read that file.',
 
   // Trends
   'trends.title': 'TRENDS',
@@ -48,6 +53,8 @@ export const en = {
   'settings.currency': 'Currency',
   'settings.done': 'Done',
   'settings.regionHint': 'Sets your currency and number formatting.',
+  'settings.language': 'Language',
+  'settings.languageHint': 'Sets the app language and smart-input keyword matching.',
 
   // Dashboard budget limits + recent list
   'dashboard.limitsTitle': 'BUDGET LIMITS',
@@ -73,6 +80,27 @@ export const en = {
   'recurring.done': 'Done',
   'recurring.startDate': 'Start date',
   'recurring.startDateDefault': 'Today',
+
+  // Accounts (where money sits) + transfers
+  'settings.accounts': 'Accounts',
+  'accounts.title': 'Accounts',
+  'accounts.subtitle': 'Track where your money actually sits.',
+  'accounts.empty': 'No accounts yet',
+  'accounts.add': 'Add account',
+  'accounts.namePlaceholder': 'e.g. Checking',
+  'accounts.balancePlaceholder': '0.00',
+  'accounts.save': 'Save account',
+  'accounts.done': 'Done',
+  'accounts.deleteBlocked': 'This account has transactions and can’t be deleted.',
+  'accounts.transfer': 'Transfer',
+  'accounts.transferTitle': 'Transfer between accounts',
+  'accounts.from': 'From',
+  'accounts.to': 'To',
+  'accounts.notePlaceholder': 'Add a note (optional)',
+  'accounts.errSameAccount': 'Choose two different accounts.',
+  'accounts.errNoAccounts': 'Add at least two accounts to transfer between them.',
+  'input.account': 'Account',
+  'input.noAccount': 'None',
 
   // Edit transaction
   'edit.title': 'Edit transaction',

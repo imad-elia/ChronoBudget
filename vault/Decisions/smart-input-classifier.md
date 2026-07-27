@@ -96,13 +96,24 @@ plus a direct-teach UI for manually adding keywords.
   Levenshtein will simply catch the same input again next time regardless.
   All logic lives in `lib/detectCategory.ts` (`stemCandidates`, `withinLevenshtein`,
   `fuzzyLookup`); no other files changed.
-- **Active-locale keyword map** — `constants/keywordMap.ts` currently hardcodes
-  `getKeywordMap('en')`; swapping in the user's actual active language (once
-  non-English keyword files exist) is a small follow-up, not done in this pass.
+- **Active-locale keyword map + French dictionary** — shipped 2026-07-27.
+  `constants/keywords/fr.ts` (~250 entries) added and registered in
+  `KEYWORD_MAPS`. `constants/keywordMap.ts` changed from the frozen
+  `getKeywordMap('en')` constant to a live `getActiveKeywordMap()` accessor
+  (re-reads the active language via `lib/i18n.ts`'s new `getActiveLocale()`
+  on every call), so switching language (see [[localization]]'s independent
+  language selector) immediately changes classifier behavior. The English
+  suffix stemmer (`stemCandidates`) was split into locale-specific
+  `stemCandidatesEn`/`stemCandidatesFr` variants selected by active locale;
+  the Levenshtein fallback tier stayed language-agnostic, no change needed.
+  Also added `stripDiacritics()` (Unicode NFD + combining-mark strip) so
+  accented French input ("café") matches the unaccented dictionary keys used
+  in `fr.ts` regardless of whether the user typed the accent.
 
 ## Related notes
 
 - [[web-inmemory-db]] — why web loses learned data on reload
-- [[localization]] — shipped alongside in the same session
+- [[localization]] — shipped alongside in the same session; independent
+  language selector added 2026-07-27
 - [[APIs]] — DB function list (schema v4)
 - [[Components]] — ExpenseInput

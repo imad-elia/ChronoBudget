@@ -41,6 +41,7 @@ interface Props {
 
 export function EditTransactionModal({ transaction, onClose }: Props) {
   const symbol = useBudgetStore((s) => s.symbol);
+  const accounts = useBudgetStore((s) => s.accounts);
 
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Category>('needs');
@@ -48,6 +49,7 @@ export function EditTransactionModal({ transaction, onClose }: Props) {
   const [customSubcategory, setCustomSubcategory] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [note, setNote] = useState('');
+  const [accountId, setAccountId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -71,6 +73,7 @@ export function EditTransactionModal({ transaction, onClose }: Props) {
       setShowCustomInput(false);
     }
     setNote(transaction.note);
+    setAccountId(transaction.accountId ?? null);
     setError(null);
   }, [transaction]);
 
@@ -107,6 +110,7 @@ export function EditTransactionModal({ transaction, onClose }: Props) {
         category,
         subcategory: resolvedSub,
         note,
+        accountId,
       });
       useBudgetStore.getState().triggerRefresh();
       onClose();
@@ -214,6 +218,38 @@ export function EditTransactionModal({ transaction, onClose }: Props) {
                   selectionColor={activeColor}
                 />
               </View>
+            )}
+
+            {/* Account chips (hidden when no accounts exist) */}
+            {accounts.length > 0 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.subRow}
+                keyboardShouldPersistTaps="handled"
+              >
+                <TouchableOpacity
+                  style={[styles.subChip, accountId === null && { borderColor: activeColor, backgroundColor: `${activeColor}18` }]}
+                  onPress={() => setAccountId(null)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.subLabel, { color: accountId === null ? activeColor : theme.colors.textMuted }]}>{t('input.noAccount')}</Text>
+                </TouchableOpacity>
+                {accounts.map((a) => {
+                  const active = accountId === a.id;
+                  return (
+                    <TouchableOpacity
+                      key={a.id}
+                      style={[styles.subChip, active && { borderColor: activeColor, backgroundColor: `${activeColor}18` }]}
+                      onPress={() => setAccountId(a.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Icon name="bank-outline" size={11} color={active ? activeColor : theme.colors.textMuted} />
+                      <Text style={[styles.subLabel, { color: active ? activeColor : theme.colors.textMuted }]}>{a.name}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
             )}
 
             {/* Note */}

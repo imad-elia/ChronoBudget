@@ -35,6 +35,11 @@ export const fr: Record<StringKey, string> = {
   'history.emptyHintAll': 'Ajoutez votre première dépense depuis le tableau de bord.',
   'history.emptyHintFiltered': 'Aucune transaction {category}.',
   'history.export': 'Exporter',
+  'history.import': 'Importer',
+  'history.importSuccess': '{count} transactions importées.',
+  'history.importSuccessSkipped': '{count} transactions importées, {skipped} ignorées.',
+  'history.importEmpty': 'Aucune transaction valide trouvée dans ce fichier.',
+  'history.importError': 'Impossible de lire ce fichier.',
 
   // Trends
   'trends.title': 'TENDANCES',
@@ -48,6 +53,8 @@ export const fr: Record<StringKey, string> = {
   'settings.currency': 'Devise',
   'settings.done': 'Terminé',
   'settings.regionHint': 'Définit votre devise et le format des nombres.',
+  'settings.language': 'Langue',
+  'settings.languageHint': 'Définit la langue de l’application et la reconnaissance des mots-clés.',
 
   // Dashboard budget limits + recent list
   'dashboard.limitsTitle': 'LIMITES BUDGÉTAIRES',
@@ -73,6 +80,27 @@ export const fr: Record<StringKey, string> = {
   'recurring.done': 'Terminé',
   'recurring.startDate': 'Date de début',
   'recurring.startDateDefault': 'Aujourd’hui',
+
+  // Accounts (where money sits) + transfers
+  'settings.accounts': 'Comptes',
+  'accounts.title': 'Comptes',
+  'accounts.subtitle': 'Suivez où se trouve réellement votre argent.',
+  'accounts.empty': 'Aucun compte',
+  'accounts.add': 'Ajouter un compte',
+  'accounts.namePlaceholder': 'ex. Compte courant',
+  'accounts.balancePlaceholder': '0,00',
+  'accounts.save': 'Enregistrer le compte',
+  'accounts.done': 'Terminé',
+  'accounts.deleteBlocked': 'Ce compte a des transactions et ne peut pas être supprimé.',
+  'accounts.transfer': 'Virement',
+  'accounts.transferTitle': 'Virement entre comptes',
+  'accounts.from': 'De',
+  'accounts.to': 'Vers',
+  'accounts.notePlaceholder': 'Ajouter une note (facultatif)',
+  'accounts.errSameAccount': 'Choisissez deux comptes différents.',
+  'accounts.errNoAccounts': 'Ajoutez au moins deux comptes pour effectuer un virement.',
+  'input.account': 'Compte',
+  'input.noAccount': 'Aucun',
 
   // Edit transaction
   'edit.title': 'Modifier la transaction',

@@ -101,4 +101,33 @@ describe('setCountry', () => {
     expect(useBudgetStore.getState().country).toBe('DE');
     expect(useBudgetStore.getState().refreshCounter).toBe(before + 1);
   });
+
+  it('follows the new country\'s default language when none was explicitly set', async () => {
+    (db.getSetting as jest.Mock).mockResolvedValue(null); // no saved 'language'
+
+    await useBudgetStore.getState().setCountry('FR');
+
+    expect(useBudgetStore.getState().language).toBe('fr');
+  });
+
+  it('does not override an explicitly chosen language on a later country change', async () => {
+    (db.getSetting as jest.Mock).mockResolvedValue('en'); // user already picked English
+
+    await useBudgetStore.getState().setCountry('FR');
+
+    expect(useBudgetStore.getState().language).toBe('en');
+    expect(db.setSetting).not.toHaveBeenCalledWith('language', expect.anything());
+  });
+});
+
+describe('setLanguage', () => {
+  it('persists the choice and bumps refreshCounter', async () => {
+    const before = useBudgetStore.getState().refreshCounter;
+
+    await useBudgetStore.getState().setLanguage('fr');
+
+    expect(db.setSetting).toHaveBeenCalledWith('language', 'fr');
+    expect(useBudgetStore.getState().language).toBe('fr');
+    expect(useBudgetStore.getState().refreshCounter).toBe(before + 1);
+  });
 });

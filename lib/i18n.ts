@@ -18,6 +18,11 @@ export function setActiveLocale(locale: string): void {
   activeLocale = BUNDLES[lang] ? lang : 'en';
 }
 
+/** Current active language code (e.g. 'en', 'fr') — read by the smart-input classifier. */
+export function getActiveLocale(): string {
+  return activeLocale;
+}
+
 /**
  * Translate a key. Falls back to the English string, then to the key itself,
  * so a missing translation is always visible rather than blank.

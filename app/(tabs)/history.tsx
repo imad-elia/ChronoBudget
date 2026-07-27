@@ -7,6 +7,7 @@ import {
   useWindowDimensions,
   StyleSheet,
   Platform,
+  Alert,
 } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -24,17 +25,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // are deprecated in SDK 54+ and now throw. The legacy entry keeps the classic API.
 let FileSystem: typeof import('expo-file-system/legacy') | null = null;
 let Sharing: typeof import('expo-sharing') | null = null;
+let DocumentPicker: typeof import('expo-document-picker') | null = null;
 if (Platform.OS !== 'web') {
   FileSystem = require('expo-file-system/legacy');
   Sharing = require('expo-sharing');
+  DocumentPicker = require('expo-document-picker');
 }
 
-import { fetchTransactions, deleteTransaction } from '../../db/database';
+import { fetchTransactions, deleteTransaction, insertTransactionsBulk } from '../../db/database';
 import { EditTransactionModal } from '../../components/EditTransactionModal';
 import { useBudgetStore, type Transaction, type Category } from '../../store/useBudgetStore';
 import { theme } from '../../theme';
 import { formatCurrency } from '../../lib/format';
 import { t } from '../../lib/i18n';
+import { parseCsv } from '../../lib/csv';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -158,6 +162,7 @@ export default function HistoryScreen() {
   const [filter, setFilter] = useState<FilterOption>('all');
   const [dbReady, setDbReady] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
 
   const refreshCounter = useBudgetStore((s) => s.refreshCounter);
@@ -215,6 +220,52 @@ export default function HistoryScreen() {
     }
   }, [transactions, exporting]);
 
+  const applyImportedCsv = useCallback(async (text: string) => {
+    const { rows, skipped } = parseCsv(text);
+    if (rows.length === 0) {
+      Alert.alert(t('history.importEmpty'));
+      return;
+    }
+    await insertTransactionsBulk(rows);
+    useBudgetStore.getState().triggerRefresh();
+    Alert.alert(
+      skipped > 0
+        ? t('history.importSuccessSkipped', { count: rows.length, skipped })
+        : t('history.importSuccess', { count: rows.length }),
+    );
+  }, []);
+
+  const handleImport = useCallback(async () => {
+    if (importing) return;
+    setImporting(true);
+    try {
+      if (Platform.OS === 'web') {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.csv,text/csv';
+        const text = await new Promise<string | null>((resolve) => {
+          input.onchange = async () => {
+            const file = input.files?.[0];
+            resolve(file ? await file.text() : null);
+          };
+          input.click();
+        });
+        if (text != null) await applyImportedCsv(text);
+        return;
+      }
+
+      if (!DocumentPicker || !FileSystem) return;
+      const result = await DocumentPicker.getDocumentAsync({ type: ['text/csv', 'text/comma-separated-values', '*/*'] });
+      if (result.canceled || result.assets.length === 0) return;
+      const text = await FileSystem.readAsStringAsync(result.assets[0].uri, { encoding: FileSystem.EncodingType.UTF8 });
+      await applyImportedCsv(text);
+    } catch {
+      Alert.alert(t('history.importError'));
+    } finally {
+      setImporting(false);
+    }
+  }, [importing, applyImportedCsv]);
+
   const sections = groupByDate(transactions);
   const total = transactions.reduce((s, t) => s + t.amount, 0);
   const totalFormatted = formatCurrency(total);
@@ -228,6 +279,18 @@ export default function HistoryScreen() {
           <Text style={styles.screenTitle}>{t('history.title')}</Text>
           <View style={styles.headerRight}>
             <Text style={[styles.totalBadge, { color: activeFilter.color }]}>{totalFormatted}</Text>
+            <TouchableOpacity
+              onPress={handleImport}
+              disabled={importing}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.exportBtn}
+            >
+              <Icon
+                name={importing ? 'loading' : 'import'}
+                size={20}
+                color={theme.colors.textMuted}
+              />
+            </TouchableOpacity>
             {transactions.length > 0 && (
               <TouchableOpacity
                 onPress={handleExport}

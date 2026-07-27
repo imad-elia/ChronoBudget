@@ -56,6 +56,7 @@ function colorFor(cat: Category): string {
 export function RecurringModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const rules = useBudgetStore((s) => s.recurring);
   const symbol = useBudgetStore((s) => s.symbol);
+  const accounts = useBudgetStore((s) => s.accounts);
 
   const [view, setView] = useState<'list' | 'form'>('list');
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -67,6 +68,7 @@ export function RecurringModal({ visible, onClose }: { visible: boolean; onClose
   const [note, setNote] = useState('');
   const [frequency, setFrequency] = useState<Frequency>('monthly');
   const [customStartDate, setCustomStartDate] = useState<number | undefined>(undefined);
+  const [accountId, setAccountId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -83,6 +85,7 @@ export function RecurringModal({ visible, onClose }: { visible: boolean; onClose
     setNote('');
     setFrequency('monthly');
     setCustomStartDate(undefined);
+    setAccountId(null);
     setError(null);
   }
 
@@ -101,6 +104,7 @@ export function RecurringModal({ visible, onClose }: { visible: boolean; onClose
     setNote(rule.note);
     setFrequency(rule.frequency);
     setCustomStartDate(undefined);
+    setAccountId(rule.accountId ?? null);
     setError(null);
     setView('form');
   }
@@ -132,7 +136,7 @@ export function RecurringModal({ visible, onClose }: { visible: boolean; onClose
     const resolvedSub = subcategory === '__custom__' ? customSubcategory.trim() : subcategory;
     setSaving(true);
     try {
-      const fields = { amount: amt, category, subcategory: resolvedSub, note, frequency };
+      const fields = { amount: amt, category, subcategory: resolvedSub, note, frequency, accountId };
       if (editingId != null) {
         await updateRecurring(editingId, fields);
       } else {
@@ -318,6 +322,38 @@ export function RecurringModal({ visible, onClose }: { visible: boolean; onClose
                   selectionColor={activeColor}
                 />
               </View>
+
+              {/* Account chips (hidden when no accounts exist) */}
+              {accounts.length > 0 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.subRow}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  <TouchableOpacity
+                    style={[styles.subChip, accountId === null && { borderColor: activeColor, backgroundColor: `${activeColor}18` }]}
+                    onPress={() => setAccountId(null)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.subLabel, { color: accountId === null ? activeColor : theme.colors.textMuted }]}>{t('input.noAccount')}</Text>
+                  </TouchableOpacity>
+                  {accounts.map((a) => {
+                    const active = accountId === a.id;
+                    return (
+                      <TouchableOpacity
+                        key={a.id}
+                        style={[styles.subChip, active && { borderColor: activeColor, backgroundColor: `${activeColor}18` }]}
+                        onPress={() => setAccountId(a.id)}
+                        activeOpacity={0.7}
+                      >
+                        <Icon name="bank-outline" size={11} color={active ? activeColor : theme.colors.textMuted} />
+                        <Text style={[styles.subLabel, { color: active ? activeColor : theme.colors.textMuted }]}>{a.name}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              )}
 
               {/* Frequency pills */}
               <Text style={styles.fieldLabel}>{t('recurring.frequency')}</Text>

@@ -81,14 +81,29 @@ translation-readiness gap in the scaffolding above:
   added to `en.ts`/`fr.ts` (duplicates like `history.title`/`trends.title`/
   `history.empty`/`edit.cancel` were reused rather than creating near-duplicate
   keys).
-- Scope decision: language stays derived from country selection only — no
-  independent language-selector UI was added.
 - Also found but **out of scope, flagged separately**: `LimitsModal` (in
   `index.tsx`) hardcodes a literal `$` prefix instead of subscribing to the
-  store's `symbol`, unlike every other money input in the app.
+  store's `symbol`, unlike every other money input in the app. (Fixed
+  2026-07-27 — see [[open-issues]].)
+
+## Independent language selector (2026-07-27)
+
+The scope decision above ("language stays derived from country selection
+only") was revisited: `store/useBudgetStore.ts` gained a `language` field
+independent of `country`/`locale`, persisted via `app_settings` key
+`language`. `setCountry()` only sets a default `language` when no explicit
+choice has ever been persisted (checked via `getSetting('language')` — if
+present, a later country/currency change no longer silently flips the UI
+language). `setLanguage()` persists explicitly and is the only way to change
+language after a first pick. A picker (`SUPPORTED_LANGUAGES` — currently
+`en`/`fr`, i.e. only locales with a real translation bundle) was added to
+`SettingsModal.tsx`, right below the country list. `getActiveLocale()` was
+added to `lib/i18n.ts` so other modules (the smart-input keyword map) can
+read the active language without importing the store directly.
 
 ## Related notes
 
-- [[smart-input-classifier]] — shipped in the same session
+- [[smart-input-classifier]] — shipped in the same session; French keyword
+  dictionary (2026-07-27) reuses `getActiveLocale()` from this note's export
 - [[APIs]] — settings keys and DB functions
 - [[Components]] — SettingsModal, OnboardingOverlay

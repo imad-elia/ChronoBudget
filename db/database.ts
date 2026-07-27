@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
-import type { Category, Transaction, CategoryTotals, CategoryLimits, MonthlyTotal, RecurringRule, Frequency } from '../store/useBudgetStore';
+import type { Category, Transaction, CategoryTotals, CategoryLimits, MonthlyTotal, RecurringRule, Frequency, Account, Transfer } from '../store/useBudgetStore';
 import { advance } from '../lib/recurrence';
 
 // Native uses a persistent on-disk SQLite file. Web uses an in-memory database:
@@ -12,7 +12,7 @@ import { advance } from '../lib/recurrence';
 // Tradeoff: web data resets on page reload.
 const DB_NAME = Platform.OS === 'web' ? ':memory:' : 'chronobudget.db';
 
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 
 // Open the connection AND run migrations as one atomic operation, then memoize
 // the resulting promise. Because every DB helper calls getDb(), this guarantees
@@ -111,6 +111,29 @@ export async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
     `);
   }
 
+  if (user_version < 7) {
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS accounts (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        name        TEXT    NOT NULL,
+        balance     REAL    NOT NULL DEFAULT 0,
+        created_at  INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+
+      ALTER TABLE transactions ADD COLUMN account_id INTEGER REFERENCES accounts(id);
+      ALTER TABLE recurring    ADD COLUMN account_id INTEGER REFERENCES accounts(id);
+
+      CREATE TABLE IF NOT EXISTS transfers (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        from_account   INTEGER NOT NULL REFERENCES accounts(id),
+        to_account     INTEGER NOT NULL REFERENCES accounts(id),
+        amount         REAL    NOT NULL CHECK(amount > 0),
+        note           TEXT    NOT NULL DEFAULT '',
+        timestamp      INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+    `);
+  }
+
   await database.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION};`);
 
   return database;
@@ -202,16 +225,23 @@ export async function insertTransaction(
   category: Category,
   subcategory: string,
   note: string,
+  accountId?: number | null,
 ): Promise<void> {
   const database = await getDb();
-  await database.runAsync(
-    'INSERT INTO transactions (amount, category, subcategory, note, timestamp) VALUES (?, ?, ?, ?, ?)',
-    amount,
-    category,
-    subcategory.trim(),
-    note.trim(),
-    Date.now(),
-  );
+  await database.withTransactionAsync(async () => {
+    await database.runAsync(
+      'INSERT INTO transactions (amount, category, subcategory, note, timestamp, account_id) VALUES (?, ?, ?, ?, ?, ?)',
+      amount,
+      category,
+      subcategory.trim(),
+      note.trim(),
+      Date.now(),
+      accountId ?? null,
+    );
+    if (accountId) {
+      await database.runAsync('UPDATE accounts SET balance = balance - ? WHERE id = ?', amount, accountId);
+    }
+  });
 }
 
 export async function updateTransaction(
@@ -221,24 +251,74 @@ export async function updateTransaction(
     category: Category;
     subcategory: string;
     note: string;
+    accountId?: number | null;
   },
 ): Promise<void> {
   const database = await getDb();
-  await database.runAsync(
-    `UPDATE transactions
-     SET amount = ?, category = ?, subcategory = ?, note = ?
-     WHERE id = ?`,
-    fields.amount,
-    fields.category,
-    fields.subcategory.trim(),
-    fields.note.trim(),
-    id,
-  );
+  await database.withTransactionAsync(async () => {
+    const [prev] = await database.getAllAsync<{ amount: number; account_id: number | null }>(
+      'SELECT amount, account_id FROM transactions WHERE id = ?',
+      id,
+    );
+    const nextAccountId = fields.accountId ?? null;
+
+    // Reverse the previous transaction's effect on its account, then apply the
+    // new one — handles amount changes, account changes, and account removal.
+    if (prev?.account_id) {
+      await database.runAsync('UPDATE accounts SET balance = balance + ? WHERE id = ?', prev.amount, prev.account_id);
+    }
+    if (nextAccountId) {
+      await database.runAsync('UPDATE accounts SET balance = balance - ? WHERE id = ?', fields.amount, nextAccountId);
+    }
+
+    await database.runAsync(
+      `UPDATE transactions
+       SET amount = ?, category = ?, subcategory = ?, note = ?, account_id = ?
+       WHERE id = ?`,
+      fields.amount,
+      fields.category,
+      fields.subcategory.trim(),
+      fields.note.trim(),
+      nextAccountId,
+      id,
+    );
+  });
+}
+
+// Bulk-inserts imported transactions in one DB transaction (CSV round-trip
+// import — see lib/csv.ts). None of these carry an account tag: the exported
+// CSV format has no account column.
+export async function insertTransactionsBulk(
+  rows: { amount: number; category: Category; subcategory: string; note: string; timestamp: number }[],
+): Promise<void> {
+  if (rows.length === 0) return;
+  const database = await getDb();
+  await database.withTransactionAsync(async () => {
+    for (const row of rows) {
+      await database.runAsync(
+        'INSERT INTO transactions (amount, category, subcategory, note, timestamp) VALUES (?, ?, ?, ?, ?)',
+        row.amount,
+        row.category,
+        row.subcategory.trim(),
+        row.note.trim(),
+        row.timestamp,
+      );
+    }
+  });
 }
 
 export async function deleteTransaction(id: number): Promise<void> {
   const database = await getDb();
-  await database.runAsync('DELETE FROM transactions WHERE id = ?', id);
+  await database.withTransactionAsync(async () => {
+    const [prev] = await database.getAllAsync<{ amount: number; account_id: number | null }>(
+      'SELECT amount, account_id FROM transactions WHERE id = ?',
+      id,
+    );
+    if (prev?.account_id) {
+      await database.runAsync('UPDATE accounts SET balance = balance + ? WHERE id = ?', prev.amount, prev.account_id);
+    }
+    await database.runAsync('DELETE FROM transactions WHERE id = ?', id);
+  });
 }
 
 // monthKey defaults to the current month ('YYYY-MM'); pass null for all-time.
@@ -272,7 +352,7 @@ export async function fetchCategoryTotals(
 export async function fetchRecentTransactions(limit = 20): Promise<Transaction[]> {
   const database = await getDb();
   return database.getAllAsync<Transaction>(
-    `SELECT id, amount, category, subcategory, note, timestamp
+    `SELECT id, amount, category, subcategory, note, timestamp, account_id AS accountId
      FROM transactions
      ORDER BY timestamp DESC
      LIMIT ?`,
@@ -287,7 +367,7 @@ export async function fetchTransactions(
   const database = await getDb();
   if (category) {
     return database.getAllAsync<Transaction>(
-      `SELECT id, amount, category, subcategory, note, timestamp
+      `SELECT id, amount, category, subcategory, note, timestamp, account_id AS accountId
        FROM transactions
        WHERE category = ?
        ORDER BY timestamp DESC
@@ -297,7 +377,7 @@ export async function fetchTransactions(
     );
   }
   return database.getAllAsync<Transaction>(
-    `SELECT id, amount, category, subcategory, note, timestamp
+    `SELECT id, amount, category, subcategory, note, timestamp, account_id AS accountId
      FROM transactions
      ORDER BY timestamp DESC
      LIMIT ?`,
@@ -364,12 +444,90 @@ export async function setBalance(category: Category, amount: number): Promise<vo
   }
 }
 
+// ─── Accounts ─────────────────────────────────────────────────────────────────
+
+export async function fetchAccounts(): Promise<Account[]> {
+  const database = await getDb();
+  return database.getAllAsync<Account>('SELECT id, name, balance FROM accounts ORDER BY id ASC');
+}
+
+export async function insertAccount(name: string, initialBalance: number): Promise<void> {
+  const database = await getDb();
+  await database.runAsync(
+    'INSERT INTO accounts (name, balance) VALUES (?, ?)',
+    name.trim(),
+    initialBalance,
+  );
+}
+
+export async function updateAccount(id: number, name: string): Promise<void> {
+  const database = await getDb();
+  await database.runAsync('UPDATE accounts SET name = ? WHERE id = ?', name.trim(), id);
+}
+
+// Refuses to delete an account still referenced by a transaction or recurring
+// rule, so historical spend never silently loses its account tag. Returns
+// false (no-op) if blocked, true if deleted.
+export async function deleteAccount(id: number): Promise<boolean> {
+  const database = await getDb();
+  const [{ count: txCount }] = await database.getAllAsync<{ count: number }>(
+    'SELECT COUNT(*) AS count FROM transactions WHERE account_id = ?',
+    id,
+  );
+  const [{ count: recurringCount }] = await database.getAllAsync<{ count: number }>(
+    'SELECT COUNT(*) AS count FROM recurring WHERE account_id = ?',
+    id,
+  );
+  if (txCount > 0 || recurringCount > 0) return false;
+
+  await database.runAsync('DELETE FROM accounts WHERE id = ?', id);
+  return true;
+}
+
+// ─── Transfers ────────────────────────────────────────────────────────────────
+
+export async function fetchTransfers(limit = 50): Promise<Transfer[]> {
+  const database = await getDb();
+  return database.getAllAsync<Transfer>(
+    `SELECT id, from_account AS fromAccount, to_account AS toAccount, amount, note, timestamp
+     FROM transfers
+     ORDER BY timestamp DESC
+     LIMIT ?`,
+    limit,
+  );
+}
+
+// Moves money between two accounts: debits fromAccount, credits toAccount,
+// and records the transfer — all atomically. Transfers live outside the
+// `transactions` table entirely, so they never count toward budget-category
+// totals (fetchCategoryTotals/fetchMonthlyTotals only ever query transactions).
+export async function insertTransfer(
+  fromAccount: number,
+  toAccount: number,
+  amount: number,
+  note: string,
+): Promise<void> {
+  const database = await getDb();
+  await database.withTransactionAsync(async () => {
+    await database.runAsync('UPDATE accounts SET balance = balance - ? WHERE id = ?', amount, fromAccount);
+    await database.runAsync('UPDATE accounts SET balance = balance + ? WHERE id = ?', amount, toAccount);
+    await database.runAsync(
+      'INSERT INTO transfers (from_account, to_account, amount, note, timestamp) VALUES (?, ?, ?, ?, ?)',
+      fromAccount,
+      toAccount,
+      amount,
+      note.trim(),
+      Date.now(),
+    );
+  });
+}
+
 // ─── Recurring transactions ──────────────────────────────────────────────────
 
 export async function fetchRecurring(): Promise<RecurringRule[]> {
   const database = await getDb();
   return database.getAllAsync<RecurringRule>(
-    `SELECT id, amount, category, subcategory, note, frequency, next_run AS nextRun, active
+    `SELECT id, amount, category, subcategory, note, frequency, next_run AS nextRun, active, account_id AS accountId
      FROM recurring
      ORDER BY next_run ASC`,
   );
@@ -385,18 +543,20 @@ export async function insertRecurring(rule: {
   // posts on the next processRecurring(). A past startDate is allowed and
   // simply catches up via processRecurring()'s existing due-occurrence loop.
   startDate?: number;
+  accountId?: number | null;
 }): Promise<void> {
   const database = await getDb();
   const nextRun = rule.startDate ?? Date.now();
   await database.runAsync(
-    `INSERT INTO recurring (amount, category, subcategory, note, frequency, next_run, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, unixepoch())`,
+    `INSERT INTO recurring (amount, category, subcategory, note, frequency, next_run, created_at, account_id)
+     VALUES (?, ?, ?, ?, ?, ?, unixepoch(), ?)`,
     rule.amount,
     rule.category,
     rule.subcategory.trim(),
     rule.note.trim(),
     rule.frequency,
     nextRun,
+    rule.accountId ?? null,
   );
 }
 
@@ -408,18 +568,20 @@ export async function updateRecurring(
     subcategory: string;
     note: string;
     frequency: Frequency;
+    accountId?: number | null;
   },
 ): Promise<void> {
   const database = await getDb();
   await database.runAsync(
     `UPDATE recurring
-     SET amount = ?, category = ?, subcategory = ?, note = ?, frequency = ?
+     SET amount = ?, category = ?, subcategory = ?, note = ?, frequency = ?, account_id = ?
      WHERE id = ?`,
     fields.amount,
     fields.category,
     fields.subcategory.trim(),
     fields.note.trim(),
     fields.frequency,
+    fields.accountId ?? null,
     id,
   );
 }
@@ -444,6 +606,7 @@ export async function processRecurring(): Promise<number> {
     note: string;
     frequency: Frequency;
     next_run: number;
+    account_id: number | null;
   }>('SELECT * FROM recurring WHERE active = 1 AND next_run <= ?', now);
 
   let inserted = 0;
@@ -453,13 +616,17 @@ export async function processRecurring(): Promise<number> {
       // advance() is strictly increasing, so this loop always terminates.
       while (run <= now) {
         await database.runAsync(
-          'INSERT INTO transactions (amount, category, subcategory, note, timestamp) VALUES (?, ?, ?, ?, ?)',
+          'INSERT INTO transactions (amount, category, subcategory, note, timestamp, account_id) VALUES (?, ?, ?, ?, ?, ?)',
           rule.amount,
           rule.category,
           rule.subcategory,
           rule.note,
           run,
+          rule.account_id,
         );
+        if (rule.account_id) {
+          await database.runAsync('UPDATE accounts SET balance = balance - ? WHERE id = ?', rule.amount, rule.account_id);
+        }
         inserted += 1;
         run = advance(run, rule.frequency);
       }
