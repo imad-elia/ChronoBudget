@@ -13,13 +13,14 @@ import { fetchMonthlyTotals } from '../../db/database';
 import { useBudgetStore, type MonthlyTotal } from '../../store/useBudgetStore';
 import { theme } from '../../theme';
 import { formatCompactCurrency } from '../../lib/format';
+import { t } from '../../lib/i18n';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
-  { id: 'needs'   as const, label: 'Needs',   color: '#00FF87' },
-  { id: 'wants'   as const, label: 'Wants',   color: '#FF2D78' },
-  { id: 'savings' as const, label: 'Savings', color: '#00BFFF' },
+  { id: 'needs'   as const, labelKey: 'category.needs'   as const, color: '#00FF87' },
+  { id: 'wants'   as const, labelKey: 'category.wants'   as const, color: '#FF2D78' },
+  { id: 'savings' as const, labelKey: 'category.savings' as const, color: '#00BFFF' },
 ];
 
 function shortMonth(yearMonth: string): string {
@@ -176,7 +177,7 @@ function SummaryChips({ data }: { data: MonthlyTotal[] }) {
         const formatted = formatCompactCurrency(val);
         return (
           <View key={cat.id} style={[summaryStyles.chip, { borderColor: `${cat.color}30`, backgroundColor: `${cat.color}0D` }]}>
-            <Text style={[summaryStyles.chipLabel, { color: cat.color }]}>{cat.label}</Text>
+            <Text style={[summaryStyles.chipLabel, { color: cat.color }]}>{t(cat.labelKey)}</Text>
             <Text style={[summaryStyles.chipAmount, { color: cat.color }]}>{formatted}</Text>
           </View>
         );
@@ -212,7 +213,7 @@ function Legend() {
       {CATEGORIES.map((cat) => (
         <View key={cat.id} style={legendStyles.item}>
           <View style={[legendStyles.dot, { backgroundColor: cat.color }]} />
-          <Text style={legendStyles.label}>{cat.label}</Text>
+          <Text style={legendStyles.label}>{t(cat.labelKey)}</Text>
         </View>
       ))}
     </View>
@@ -261,8 +262,8 @@ export default function TrendsScreen() {
       >
         {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-          <Text style={styles.screenTitle}>TRENDS</Text>
-          <Text style={styles.subtitle}>Last 6 months</Text>
+          <Text style={styles.screenTitle}>{t('trends.title')}</Text>
+          <Text style={styles.subtitle}>{t('trends.subtitle')}</Text>
         </View>
 
         {hasData ? (
@@ -274,9 +275,9 @@ export default function TrendsScreen() {
         ) : (
           <View style={styles.emptyWrap}>
             <Icon name="chart-bar" size={48} color={theme.colors.textMuted} />
-            <Text style={styles.emptyTitle}>No data yet</Text>
+            <Text style={styles.emptyTitle}>{t('trends.empty')}</Text>
             <Text style={styles.emptySubtitle}>
-              Add transactions on the Dashboard to see your spending trends here.
+              {t('trends.emptyHint')}
             </Text>
           </View>
         )}

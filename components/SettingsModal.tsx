@@ -17,11 +17,17 @@ import { t } from '../lib/i18n';
 import { setBalance, fetchBalances } from '../db/database';
 import { KeywordsModal } from './KeywordsModal';
 
-const BALANCE_CATEGORIES: { id: Category; label: string; color: string }[] = [
-  { id: 'needs',   label: t('category.needs'),   color: '#00FF87' },
-  { id: 'wants',   label: t('category.wants'),   color: '#FF2D78' },
-  { id: 'savings', label: t('category.savings'), color: '#00BFFF' },
+const BALANCE_CATEGORIES: { id: Category; color: string }[] = [
+  { id: 'needs',   color: '#00FF87' },
+  { id: 'wants',   color: '#FF2D78' },
+  { id: 'savings', color: '#00BFFF' },
 ];
+
+const CATEGORY_LABEL_KEY = {
+  needs: 'category.needs',
+  wants: 'category.wants',
+  savings: 'category.savings',
+} as const;
 
 export function SettingsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const country = useBudgetStore((s) => s.country);
@@ -91,7 +97,7 @@ export function SettingsModal({ visible, onClose }: { visible: boolean; onClose:
           {BALANCE_CATEGORIES.map((cat) => (
             <View key={cat.id} style={styles.balanceRow}>
               <View style={[styles.balanceDot, { backgroundColor: cat.color }]} />
-              <Text style={[styles.balanceLabel, { color: cat.color }]}>{cat.label}</Text>
+              <Text style={[styles.balanceLabel, { color: cat.color }]}>{t(CATEGORY_LABEL_KEY[cat.id])}</Text>
               <View style={[styles.balanceInputWrap, { borderColor: drafts[cat.id] ? `${cat.color}60` : theme.colors.border }]}>
                 <Text style={[styles.balancePrefix, { color: cat.color }]}>{symbol}</Text>
                 <TextInput

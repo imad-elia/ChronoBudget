@@ -32,11 +32,15 @@ export const en = {
   'history.title': 'HISTORY',
   'history.filterAll': 'All',
   'history.empty': 'No transactions yet',
+  'history.emptyHintAll': 'Add your first expense on the Dashboard.',
+  'history.emptyHintFiltered': 'No {category} transactions yet.',
   'history.export': 'Export',
 
   // Trends
   'trends.title': 'TRENDS',
+  'trends.subtitle': 'Last 6 months',
   'trends.empty': 'Not enough data yet',
+  'trends.emptyHint': 'Add transactions on the Dashboard to see your spending trends here.',
 
   // Settings
   'settings.title': 'Settings',
@@ -44,6 +48,14 @@ export const en = {
   'settings.currency': 'Currency',
   'settings.done': 'Done',
   'settings.regionHint': 'Sets your currency and number formatting.',
+
+  // Dashboard budget limits + recent list
+  'dashboard.limitsTitle': 'BUDGET LIMITS',
+  'dashboard.limitsHint': 'Set monthly spending limits per category. Leave blank to remove.',
+  'dashboard.noLimit': 'No limit',
+  'dashboard.saving': 'Saving…',
+  'dashboard.saveLimits': 'Save Limits',
+  'dashboard.recent': 'RECENT',
 
   // Recurring
   'recurring.title': 'Recurring',
@@ -69,6 +81,10 @@ export const en = {
   'edit.cancel': 'Cancel',
 
   // Onboarding
+  'onboarding.back': 'Back',
+  'onboarding.next': 'Next →',
+  'onboarding.gotIt': 'Got it ✓',
+  'onboarding.skipTutorial': 'Skip tutorial',
   'onboarding.countryTitle': 'Where are you?',
   'onboarding.countrySubtitle': 'We’ll set your currency and formatting. You can change it later in Settings.',
   'onboarding.countryColumn': 'Country',
@@ -83,6 +99,7 @@ export const en = {
   'settings.balances': 'Starting balances',
   'settings.balancesHint': 'How much money you have per category. Leave blank for none.',
   'card.remaining': 'left',
+  'card.over': 'OVER',
 
   // Manual keywords (settings + keywords modal)
   'settings.keywords': 'My Keywords',

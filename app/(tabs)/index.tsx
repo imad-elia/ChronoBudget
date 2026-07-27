@@ -46,7 +46,7 @@ import { t } from '../../lib/i18n';
 const BENTO_CONFIG = [
   {
     id: 'needs' as Category,
-    title: 'Needs',
+    labelKey: 'category.needs' as const,
     icon: 'home-outline' as const,
     color: '#00FF87',
     glowColor: '#00FF87',
@@ -54,7 +54,7 @@ const BENTO_CONFIG = [
   },
   {
     id: 'wants' as Category,
-    title: 'Wants',
+    labelKey: 'category.wants' as const,
     icon: 'shopping-outline' as const,
     color: '#FF2D78',
     glowColor: '#FF2D78',
@@ -62,7 +62,7 @@ const BENTO_CONFIG = [
   },
   {
     id: 'savings' as Category,
-    title: 'Savings',
+    labelKey: 'category.savings' as const,
     icon: 'piggy-bank-outline' as const,
     color: '#00BFFF',
     glowColor: '#00BFFF',
@@ -101,7 +101,7 @@ function TransactionRow({ item, onDelete, onEdit }: { item: Transaction; onDelet
         </View>
         <View style={rowStyles.meta}>
           <Text style={rowStyles.note} numberOfLines={1}>
-            {item.subcategory || item.note || config.title}
+            {item.subcategory || item.note || t(config.labelKey)}
           </Text>
           <Text style={rowStyles.date}>{date}</Text>
         </View>
@@ -189,18 +189,18 @@ function LimitsModal({ visible, onClose, onSave }: { visible: boolean; onClose: 
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
         <View style={modalStyles.sheet}>
           <View style={modalStyles.handle} />
-          <Text style={modalStyles.title}>BUDGET LIMITS</Text>
-          <Text style={modalStyles.subtitle}>Set monthly spending limits per category. Leave blank to remove.</Text>
+          <Text style={modalStyles.title}>{t('dashboard.limitsTitle')}</Text>
+          <Text style={modalStyles.subtitle}>{t('dashboard.limitsHint')}</Text>
 
           {BENTO_CONFIG.map((cat) => (
             <View key={cat.id} style={modalStyles.row}>
               <View style={[modalStyles.dot, { backgroundColor: cat.color }]} />
-              <Text style={[modalStyles.label, { color: cat.color }]}>{cat.title}</Text>
+              <Text style={[modalStyles.label, { color: cat.color }]}>{t(cat.labelKey)}</Text>
               <View style={[modalStyles.inputWrap, { borderColor: drafts[cat.id] ? `${cat.color}60` : theme.colors.border }]}>
                 <Text style={[modalStyles.prefix, { color: cat.color }]}>$</Text>
                 <TextInput
                   style={modalStyles.input}
-                  placeholder="No limit"
+                  placeholder={t('dashboard.noLimit')}
                   placeholderTextColor={theme.colors.textMuted}
                   value={drafts[cat.id]}
                   onChangeText={(v) => setDrafts((d) => ({ ...d, [cat.id]: v }))}
@@ -213,10 +213,10 @@ function LimitsModal({ visible, onClose, onSave }: { visible: boolean; onClose: 
 
           <View style={modalStyles.actions}>
             <TouchableOpacity style={modalStyles.cancel} onPress={onClose} activeOpacity={0.7}>
-              <Text style={modalStyles.cancelLabel}>Cancel</Text>
+              <Text style={modalStyles.cancelLabel}>{t('edit.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={modalStyles.save} onPress={handleSave} disabled={saving} activeOpacity={0.8}>
-              <Text style={modalStyles.saveLabel}>{saving ? 'Saving…' : 'Save Limits'}</Text>
+              <Text style={modalStyles.saveLabel}>{saving ? t('dashboard.saving') : t('dashboard.saveLimits')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -307,7 +307,7 @@ function DashboardHeader({ totals, onOpenLimits, onOpenSettings, onOpenRecurring
         {BENTO_CONFIG.map((c) => (
           <BentoCard
             key={c.id}
-            title={c.title}
+            title={t(c.labelKey)}
             amount={totals[c.id]}
             color={c.color}
             glowColor={c.glowColor}
@@ -318,7 +318,7 @@ function DashboardHeader({ totals, onOpenLimits, onOpenSettings, onOpenRecurring
           />
         ))}
       </View>
-      <Text style={headerStyles.sectionLabel}>RECENT</Text>
+      <Text style={headerStyles.sectionLabel}>{t('dashboard.recent')}</Text>
     </View>
   );
 }
@@ -342,7 +342,7 @@ function EmptyState() {
   return (
     <View style={emptyStyles.wrap}>
       <Icon name="receipt-text-outline" size={40} color={theme.colors.textMuted} />
-      <Text style={emptyStyles.text}>No transactions yet</Text>
+      <Text style={emptyStyles.text}>{t('history.empty')}</Text>
     </View>
   );
 }

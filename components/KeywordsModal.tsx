@@ -24,11 +24,11 @@ const CATEGORIES: { id: Category; color: string }[] = [
   { id: 'savings', color: '#00BFFF' },
 ];
 
-const CATEGORY_LABEL: Record<Category, string> = {
-  needs: t('category.needs'),
-  wants: t('category.wants'),
-  savings: t('category.savings'),
-};
+const CATEGORY_LABEL_KEY = {
+  needs: 'category.needs',
+  wants: 'category.wants',
+  savings: 'category.savings',
+} as const;
 
 function colorFor(cat: Category): string {
   return CATEGORIES.find((c) => c.id === cat)!.color;
@@ -42,6 +42,9 @@ interface Props {
 export function KeywordsModal({ visible, onClose }: Props) {
   const learnedKeywords = useBudgetStore((s) => s.learnedKeywords);
   const loadLearnedKeywords = useBudgetStore((s) => s.loadLearnedKeywords);
+  // Subscribe purely so this modal re-renders (and CATEGORY_LABEL_KEY lookups
+  // re-translate) when the user changes locale while it's open.
+  useBudgetStore((s) => s.symbol);
 
   const [adding, setAdding] = useState(false);
   const [word, setWord] = useState('');
@@ -132,7 +135,7 @@ export function KeywordsModal({ visible, onClose }: Props) {
                   <View style={[styles.dot, { backgroundColor: color }]} />
                   <View style={styles.rowText}>
                     <Text style={styles.rowWord}>{key}</Text>
-                    <Text style={[styles.rowSub, { color }]}>{CATEGORY_LABEL[entry.category]} · {entry.subcategory}</Text>
+                    <Text style={[styles.rowSub, { color }]}>{t(CATEGORY_LABEL_KEY[entry.category])} · {entry.subcategory}</Text>
                   </View>
                   <TouchableOpacity
                     testID={`delete-keyword-${key}`}
@@ -173,7 +176,7 @@ export function KeywordsModal({ visible, onClose }: Props) {
                         activeOpacity={0.7}
                       >
                         <Text style={[styles.categoryLabel, { color: active ? cat.color : theme.colors.textMuted }]}>
-                          {CATEGORY_LABEL[cat.id]}
+                          {t(CATEGORY_LABEL_KEY[cat.id])}
                         </Text>
                       </TouchableOpacity>
                     );

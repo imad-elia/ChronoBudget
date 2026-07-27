@@ -24,10 +24,12 @@ Two layers, both centralized:
    `constants/countries.ts`) guarantees the fallback never renders blank.
    All hardcoded `en-US`/`USD`/`$` sites now call these helpers.
 
-2. **i18n scaffolding (English only today)** — `constants/i18n/en.ts` is the flat
-   "properties file" of all user-facing strings; `lib/i18n.ts` exposes `t(key, vars)`
-   with an `en`-only registry, language-prefix matching, and key/`en` fallback.
-   Adding a language = a sibling file (e.g. `fr.ts`) registered in `lib/i18n.ts`.
+2. **i18n scaffolding** — `constants/i18n/en.ts` is the flat "properties file" of
+   all user-facing strings; `lib/i18n.ts` exposes `t(key, vars)` with a registry,
+   language-prefix matching, and key/`en` fallback. Adding a language = a sibling
+   file registered in `lib/i18n.ts` — confirmed drop-in: `constants/i18n/fr.ts`
+   shipped 2026-07-27 (full French translation, ~100 keys) with no other code
+   changes needed for already-`t()`-routed strings.
 
 ## Data & entry points
 
@@ -46,6 +48,44 @@ Two layers, both centralized:
 - Currency updates everywhere immediately on change; verified on web (USD→GBP).
 - UI text stays English but every string is already routed through `t()`, so
   translation is drop-in with no code changes.
+
+## French locale + i18n reactivity fixes (2026-07-27)
+
+Shipping the first real second language (French) surfaced two latent bugs and a
+translation-readiness gap in the scaffolding above:
+
+- **Frozen module-scope `t()` calls** — four files (`SettingsModal.tsx`,
+  `OnboardingOverlay.tsx`, `KeywordsModal.tsx`, `ExpenseInput.tsx`) computed a
+  `t()`-derived label array/object once at import time (e.g.
+  `const CATEGORY_LABEL = { needs: t('category.needs'), … }`), so the label was
+  frozen to whichever locale was active on first load and never updated. Fixed by
+  keeping only the `StringKey` mapping at module scope (e.g.
+  `CATEGORY_LABEL_KEY = { needs: 'category.needs', … } as const`) and calling
+  `t(CATEGORY_LABEL_KEY[id])` inside the render, so it re-evaluates every render.
+  The `ExpenseInput.tsx` instance was found live in the browser during
+  verification, after the other three had already been scoped — same bug class,
+  same fix.
+- **Reactivity gap** — `t()` reads a plain module-level variable, not a
+  subscribed Zustand field. `setCountry()`/`loadLocale()` already bump
+  `refreshCounter`/`symbol` alongside `locale`, and every screen/modal calling
+  `t()` already subscribed to one of those *except* `KeywordsModal.tsx`. Fixed by
+  adding a no-op `useBudgetStore((s) => s.symbol)` subscription there purely to
+  force a re-render on locale change — same pattern already used elsewhere, no
+  Context introduced.
+- **Translation-readiness gap** — ~15 hardcoded strings across `BentoCard.tsx`,
+  `OnboardingOverlay.tsx`, `trends.tsx`, `history.tsx`, and `index.tsx` were never
+  routed through `t()` at all (the "OVER" badge, tour Back/Next/Skip buttons,
+  screen titles/empty states, budget-limits modal, category names baked directly
+  into `BENTO_CONFIG`/`CATEGORY_CONFIG`/`FILTERS` module constants instead of
+  looked up via `t('category.*')`). All now route through `t()`, with new keys
+  added to `en.ts`/`fr.ts` (duplicates like `history.title`/`trends.title`/
+  `history.empty`/`edit.cancel` were reused rather than creating near-duplicate
+  keys).
+- Scope decision: language stays derived from country selection only — no
+  independent language-selector UI was added.
+- Also found but **out of scope, flagged separately**: `LimitsModal` (in
+  `index.tsx`) hardcodes a literal `$` prefix instead of subscribing to the
+  store's `symbol`, unlike every other money input in the app.
 
 ## Related notes
 

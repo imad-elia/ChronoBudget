@@ -1,0 +1,115 @@
+// French strings — mirrors every key in en.ts. See en.ts for the key structure.
+import type { StringKey } from './en';
+
+export const fr: Record<StringKey, string> = {
+  // Dashboard
+  'dashboard.totalSpent': 'Dépensé ce mois-ci',
+  'dashboard.settings': 'Paramètres',
+  'dashboard.limits': 'Limites',
+
+  // Categories
+  'category.needs': 'Besoins',
+  'category.wants': 'Envies',
+  'category.savings': 'Épargne',
+
+  // Expense input
+  'input.fast': 'Rapide',
+  'input.detailed': 'Détaillé',
+  'input.amountPlaceholder': '0,00',
+  'input.smartPlaceholder': 'ex. 15 café',
+  'input.notePlaceholder': 'Ajouter une note (facultatif)',
+  'input.subcategoryPlaceholder': 'Nom de sous-catégorie',
+  'input.custom': 'Personnalisé',
+  'input.add': 'Ajouter',
+  'input.goesTo': 'va dans',
+  'input.change': 'changer',
+  'input.errAmount': 'Saisissez un montant valide.',
+  'input.errPositive': 'Le montant doit être supérieur à zéro.',
+  'input.errTooLarge': 'Le montant est trop élevé.',
+  'input.errSave': 'Échec de l’enregistrement. Veuillez réessayer.',
+
+  // History
+  'history.title': 'HISTORIQUE',
+  'history.filterAll': 'Tout',
+  'history.empty': 'Aucune transaction',
+  'history.emptyHintAll': 'Ajoutez votre première dépense depuis le tableau de bord.',
+  'history.emptyHintFiltered': 'Aucune transaction {category}.',
+  'history.export': 'Exporter',
+
+  // Trends
+  'trends.title': 'TENDANCES',
+  'trends.subtitle': '6 derniers mois',
+  'trends.empty': 'Pas encore assez de données',
+  'trends.emptyHint': 'Ajoutez des transactions depuis le tableau de bord pour voir vos tendances de dépenses ici.',
+
+  // Settings
+  'settings.title': 'Paramètres',
+  'settings.country': 'Pays',
+  'settings.currency': 'Devise',
+  'settings.done': 'Terminé',
+  'settings.regionHint': 'Définit votre devise et le format des nombres.',
+
+  // Dashboard budget limits + recent list
+  'dashboard.limitsTitle': 'LIMITES BUDGÉTAIRES',
+  'dashboard.limitsHint': 'Définissez des limites de dépenses mensuelles par catégorie. Laissez vide pour supprimer.',
+  'dashboard.noLimit': 'Aucune limite',
+  'dashboard.saving': 'Enregistrement…',
+  'dashboard.saveLimits': 'Enregistrer les limites',
+  'dashboard.recent': 'RÉCENT',
+
+  // Recurring
+  'recurring.title': 'Récurrent',
+  'recurring.subtitle': 'Les règles s’appliquent automatiquement à chaque période. Vous pouvez supprimer toute transaction publiée.',
+  'recurring.add': 'Ajouter une récurrence',
+  'recurring.empty': 'Aucune règle récurrente',
+  'recurring.weekly': 'Hebdomadaire',
+  'recurring.monthly': 'Mensuel',
+  'recurring.yearly': 'Annuel',
+  'recurring.frequency': 'Fréquence',
+  'recurring.next': 'prochaine le {date}',
+  'recurring.amountPlaceholder': '0,00',
+  'recurring.notePlaceholder': 'Ajouter une note (facultatif)',
+  'recurring.save': 'Enregistrer la règle',
+  'recurring.done': 'Terminé',
+  'recurring.startDate': 'Date de début',
+  'recurring.startDateDefault': 'Aujourd’hui',
+
+  // Edit transaction
+  'edit.title': 'Modifier la transaction',
+  'edit.save': 'Enregistrer',
+  'edit.delete': 'Supprimer',
+  'edit.cancel': 'Annuler',
+
+  // Onboarding
+  'onboarding.back': 'Retour',
+  'onboarding.next': 'Suivant →',
+  'onboarding.gotIt': 'Compris ✓',
+  'onboarding.skipTutorial': 'Passer le tutoriel',
+  'onboarding.countryTitle': 'Où êtes-vous ?',
+  'onboarding.countrySubtitle': 'Nous définirons votre devise et le format des nombres. Vous pourrez le modifier plus tard dans les paramètres.',
+  'onboarding.countryColumn': 'Pays',
+  'onboarding.currencyColumn': 'Devise',
+  'onboarding.countryHint': 'Le pays en surbrillance s’appliquera si vous appuyez sur Continuer.',
+  'onboarding.continue': 'Continuer',
+  'onboarding.balanceTitle': 'Soldes de départ',
+  'onboarding.balanceSubtitle': 'Indiquez éventuellement combien d’argent vous avez actuellement par catégorie. Laissez vide pour passer — vous pourrez le faire plus tard dans les paramètres.',
+  'onboarding.balanceSkip': 'Passer pour l’instant',
+
+  // Starting balances (settings + dashboard)
+  'settings.balances': 'Soldes de départ',
+  'settings.balancesHint': 'Combien d’argent vous avez par catégorie. Laissez vide si aucun.',
+  'card.remaining': 'restant',
+  'card.over': 'DÉPASSÉ',
+
+  // Manual keywords (settings + keywords modal)
+  'settings.keywords': 'Mes mots-clés',
+  'keywords.title': 'Mes mots-clés',
+  'keywords.hint': 'Apprenez à la saisie rapide à reconnaître vos propres mots.',
+  'keywords.add': 'Ajouter un mot-clé',
+  'keywords.wordPlaceholder': 'Mot (ex. « gymbox »)',
+  'keywords.empty': 'Aucun mot-clé personnalisé.',
+  'keywords.save': 'Enregistrer',
+  'keywords.cancel': 'Annuler',
+  'keywords.errWord': 'Saisissez un mot.',
+  'keywords.errSubcategory': 'Choisissez une sous-catégorie.',
+};

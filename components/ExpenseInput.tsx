@@ -28,11 +28,11 @@ const CATEGORIES: { id: Category; color: string }[] = [
   { id: 'savings', color: '#00BFFF' },
 ];
 
-const CATEGORY_LABEL: Record<Category, string> = {
-  needs: t('category.needs'),
-  wants: t('category.wants'),
-  savings: t('category.savings'),
-};
+const CATEGORY_LABEL_KEY = {
+  needs: 'category.needs',
+  wants: 'category.wants',
+  savings: 'category.savings',
+} as const;
 
 export function ExpenseInput() {
   const [mode, setMode] = useState<InputMode>('fast');
@@ -199,7 +199,7 @@ export function ExpenseInput() {
             activeOpacity={0.7}
           >
             <Text style={[styles.categoryLabel, { color: active ? cat.color : theme.colors.textMuted }]}>
-              {CATEGORY_LABEL[cat.id]}
+              {t(CATEGORY_LABEL_KEY[cat.id])}
             </Text>
           </TouchableOpacity>
         );
@@ -244,7 +244,7 @@ export function ExpenseInput() {
     return (
       <View style={styles.previewRow}>
         <Icon name="arrow-right-thin" size={15} color={activeColor} />
-        <Text style={[styles.previewCategory, { color: activeColor }]}>{CATEGORY_LABEL[category]}</Text>
+        <Text style={[styles.previewCategory, { color: activeColor }]}>{t(CATEGORY_LABEL_KEY[category])}</Text>
         {subDisplay ? (
           <>
             <Text style={styles.previewDot}>·</Text>

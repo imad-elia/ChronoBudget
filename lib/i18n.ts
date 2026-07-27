@@ -1,10 +1,12 @@
 import { en, type StringKey } from '../constants/i18n/en';
+import { fr } from '../constants/i18n/fr';
 
-// Locale registry. Only English ships today; adding a language = import its
-// strings file and register it here (keys mirror en.ts). The active locale is
-// driven by the store (useBudgetStore.locale); detection falls back to 'en'.
+// Locale registry. Adding a language = import its strings file and register
+// it here (keys mirror en.ts). The active locale is driven by the store
+// (useBudgetStore.locale); detection falls back to 'en'.
 const BUNDLES: Record<string, Partial<Record<StringKey, string>>> = {
   en,
+  fr,
 };
 
 let activeLocale = 'en';

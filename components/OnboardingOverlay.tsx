@@ -59,11 +59,17 @@ const STEPS: Step[] = [
   },
 ];
 
-const BALANCE_CATEGORIES: { id: Category; label: string; color: string }[] = [
-  { id: 'needs',   label: t('category.needs'),   color: '#00FF87' },
-  { id: 'wants',   label: t('category.wants'),   color: '#FF2D78' },
-  { id: 'savings', label: t('category.savings'), color: '#00BFFF' },
+const BALANCE_CATEGORIES: { id: Category; color: string }[] = [
+  { id: 'needs',   color: '#00FF87' },
+  { id: 'wants',   color: '#FF2D78' },
+  { id: 'savings', color: '#00BFFF' },
 ];
+
+const CATEGORY_LABEL_KEY = {
+  needs: 'category.needs',
+  wants: 'category.wants',
+  savings: 'category.savings',
+} as const;
 
 export function OnboardingOverlay({ visible, onDone }: Props) {
   const [phase, setPhase] = useState<'country' | 'balance' | 'tour'>('country');
@@ -227,7 +233,7 @@ export function OnboardingOverlay({ visible, onDone }: Props) {
               {BALANCE_CATEGORIES.map((cat) => (
                 <View key={cat.id} style={balanceStyles.row}>
                   <View style={[balanceStyles.dot, { backgroundColor: cat.color }]} />
-                  <Text style={[balanceStyles.label, { color: cat.color }]}>{cat.label}</Text>
+                  <Text style={[balanceStyles.label, { color: cat.color }]}>{t(CATEGORY_LABEL_KEY[cat.id])}</Text>
                   <View style={[balanceStyles.inputWrap, { borderColor: balanceDrafts[cat.id] ? `${cat.color}60` : theme.colors.border }]}>
                     <Text style={[balanceStyles.prefix, { color: cat.color }]}>{symbol}</Text>
                     <TextInput
@@ -302,7 +308,7 @@ export function OnboardingOverlay({ visible, onDone }: Props) {
           <View style={styles.actions}>
             {!isFirst && (
               <TouchableOpacity style={styles.backBtn} onPress={() => setStep((s) => s - 1)} activeOpacity={0.7}>
-                <Text style={styles.backLabel}>Back</Text>
+                <Text style={styles.backLabel}>{t('onboarding.back')}</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity
@@ -310,14 +316,14 @@ export function OnboardingOverlay({ visible, onDone }: Props) {
               onPress={handleNext}
               activeOpacity={0.8}
             >
-              <Text style={styles.nextLabel}>{isLast ? 'Got it ✓' : 'Next →'}</Text>
+              <Text style={styles.nextLabel}>{isLast ? t('onboarding.gotIt') : t('onboarding.next')}</Text>
             </TouchableOpacity>
           </View>
 
           {/* Skip */}
           {!isLast && (
             <TouchableOpacity onPress={handleDone} activeOpacity={0.6} style={styles.skipBtn}>
-              <Text style={styles.skipLabel}>Skip tutorial</Text>
+              <Text style={styles.skipLabel}>{t('onboarding.skipTutorial')}</Text>
             </TouchableOpacity>
           )}
         </View>

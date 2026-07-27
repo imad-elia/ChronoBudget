@@ -34,22 +34,23 @@ import { EditTransactionModal } from '../../components/EditTransactionModal';
 import { useBudgetStore, type Transaction, type Category } from '../../store/useBudgetStore';
 import { theme } from '../../theme';
 import { formatCurrency } from '../../lib/format';
+import { t } from '../../lib/i18n';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const CATEGORY_CONFIG = {
-  needs:   { label: 'Needs',   color: '#00FF87', icon: 'home-outline'     as const },
-  wants:   { label: 'Wants',   color: '#FF2D78', icon: 'shopping-outline' as const },
-  savings: { label: 'Savings', color: '#00BFFF', icon: 'piggy-bank-outline' as const },
+  needs:   { labelKey: 'category.needs'   as const, color: '#00FF87', icon: 'home-outline'     as const },
+  wants:   { labelKey: 'category.wants'   as const, color: '#FF2D78', icon: 'shopping-outline' as const },
+  savings: { labelKey: 'category.savings' as const, color: '#00BFFF', icon: 'piggy-bank-outline' as const },
 };
 
 type FilterOption = 'all' | Category;
 
-const FILTERS: { id: FilterOption; label: string; color: string }[] = [
-  { id: 'all',     label: 'All',     color: theme.colors.textPrimary },
-  { id: 'needs',   label: 'Needs',   color: '#00FF87' },
-  { id: 'wants',   label: 'Wants',   color: '#FF2D78' },
-  { id: 'savings', label: 'Savings', color: '#00BFFF' },
+const FILTERS: { id: FilterOption; labelKey: 'history.filterAll' | 'category.needs' | 'category.wants' | 'category.savings'; color: string }[] = [
+  { id: 'all',     labelKey: 'history.filterAll', color: theme.colors.textPrimary },
+  { id: 'needs',   labelKey: 'category.needs',     color: '#00FF87' },
+  { id: 'wants',   labelKey: 'category.wants',     color: '#FF2D78' },
+  { id: 'savings', labelKey: 'category.savings',   color: '#00BFFF' },
 ];
 
 // ─── Date grouping ────────────────────────────────────────────────────────────
@@ -105,10 +106,10 @@ function HistoryRow({ item, onDelete, onEdit }: { item: Transaction; onDelete: (
           <Icon name={cfg.icon} size={18} color={cfg.color} />
         </View>
         <View style={rowStyles.meta}>
-          <Text style={rowStyles.note} numberOfLines={1}>{item.subcategory || item.note || cfg.label}</Text>
+          <Text style={rowStyles.note} numberOfLines={1}>{item.subcategory || item.note || t(cfg.labelKey)}</Text>
           <View style={rowStyles.tagRow}>
             <View style={[rowStyles.tag, { backgroundColor: `${cfg.color}18`, borderColor: `${cfg.color}30` }]}>
-              <Text style={[rowStyles.tagText, { color: cfg.color }]}>{cfg.label}</Text>
+              <Text style={[rowStyles.tagText, { color: cfg.color }]}>{t(cfg.labelKey)}</Text>
             </View>
             <Text style={rowStyles.time}>{time}</Text>
           </View>
@@ -224,7 +225,7 @@ export default function HistoryScreen() {
       <View style={[styles.frame, isWide && styles.frameWide]}>
         {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-          <Text style={styles.screenTitle}>HISTORY</Text>
+          <Text style={styles.screenTitle}>{t('history.title')}</Text>
           <View style={styles.headerRight}>
             <Text style={[styles.totalBadge, { color: activeFilter.color }]}>{totalFormatted}</Text>
             {transactions.length > 0 && (
@@ -256,7 +257,7 @@ export default function HistoryScreen() {
                 activeOpacity={0.7}
               >
                 <Text style={[styles.filterLabel, { color: active ? f.color : theme.colors.textMuted }]}>
-                  {f.label}
+                  {t(f.labelKey)}
                 </Text>
               </TouchableOpacity>
             );
@@ -267,11 +268,11 @@ export default function HistoryScreen() {
         {transactions.length === 0 ? (
           <View style={styles.emptyWrap}>
             <Icon name="receipt-text-outline" size={48} color={theme.colors.textMuted} />
-            <Text style={styles.emptyTitle}>No transactions</Text>
+            <Text style={styles.emptyTitle}>{t('history.empty')}</Text>
             <Text style={styles.emptySubtitle}>
               {filter === 'all'
-                ? 'Add your first expense on the Dashboard.'
-                : `No ${activeFilter.label} transactions yet.`}
+                ? t('history.emptyHintAll')
+                : t('history.emptyHintFiltered', { category: t(activeFilter.labelKey) })}
             </Text>
           </View>
         ) : (

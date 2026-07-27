@@ -78,7 +78,7 @@ export function BentoCard({ title, amount, color, glowColor, gradientColors, ico
             {over && (
               <View style={styles.overBadge}>
                 <Icon name="alert-circle" size={11} color="#FF2D78" />
-                <Text style={styles.overBadgeText}>OVER</Text>
+                <Text style={styles.overBadgeText}>{t('card.over')}</Text>
               </View>
             )}
             <Text style={[styles.progressLabel, { color: barColor }]}>{pct}%</Text>

@@ -1,10 +1,11 @@
 jest.mock('../../db/database');
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { useBudgetStore } from '../../store/useBudgetStore';
 import { KeywordsModal } from '../KeywordsModal';
 import * as db from '../../db/database';
+import { setActiveLocale } from '../../lib/i18n';
 
 const onClose = jest.fn();
 
@@ -75,6 +76,25 @@ describe('KeywordsModal — edit flow', () => {
     await render(<KeywordsModal visible onClose={onClose} />);
     await fireEvent.press(screen.getByText('gymbox'));
     expect(screen.getByDisplayValue('gymbox')).toBeTruthy();
+  });
+});
+
+describe('KeywordsModal — locale reactivity', () => {
+  afterEach(() => setActiveLocale('en'));
+
+  it('updates category labels when the locale changes while the modal is open', async () => {
+    useBudgetStore.setState({
+      learnedKeywords: { gymbox: { category: 'wants', subcategory: 'Entertainment' } },
+    });
+    await render(<KeywordsModal visible onClose={onClose} />);
+    expect(screen.getByText(/Wants.*Entertainment/)).toBeTruthy();
+
+    setActiveLocale('fr');
+    await act(async () => {
+      useBudgetStore.setState({ symbol: '€' });
+    });
+
+    await waitFor(() => expect(screen.getByText(/Envies.*Entertainment/)).toBeTruthy());
   });
 });
 
