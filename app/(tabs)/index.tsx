@@ -304,11 +304,11 @@ function DashboardHeader({ totals, onOpenLimits, onOpenSettings, onOpenRecurring
           <TouchableOpacity style={headerStyles.iconBtn} onPress={onOpenRecurring} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Icon name="autorenew" size={20} color={theme.colors.textMuted} />
           </TouchableOpacity>
-          <TouchableOpacity style={headerStyles.iconBtn} onPress={onOpenSettings} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Icon name="cog-outline" size={20} color={theme.colors.textMuted} />
-          </TouchableOpacity>
           <TouchableOpacity style={headerStyles.iconBtn} onPress={onOpenLimits} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Icon name="tune-variant" size={20} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity style={headerStyles.iconBtn} onPress={onOpenSettings} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Icon name="cog-outline" size={20} color={theme.colors.textMuted} />
           </TouchableOpacity>
         </View>
       </View>

@@ -143,6 +143,25 @@ This round was verified via `tsc --noEmit` + full test suite only, at the
 user's explicit request (no live browser check) — see [[open-issues]] for
 what to manually verify.
 
+## Tab bar reactivity fix (2026-07-27, part 6)
+
+The tab bar title fix in part 5 above worked on a fresh app load but not for a
+live in-session language switch — user caught this by changing language from
+Settings without restarting. Root cause: `app/(tabs)/_layout.tsx` subscribed to
+`useBudgetStore((s) => s.symbol)` purely to force a re-render on language
+change, copying the "no-op subscription" trick used in `KeywordsModal.tsx`
+(part 5). But that trick only works if the subscribed field actually changes
+on the event you care about — `symbol` changes with country/currency, not with
+a same-country language-only switch via `setLanguage()` (which only touches
+`language` and `refreshCounter`). Every *other* screen happened to already
+subscribe to `refreshCounter` for unrelated reasons (refetching data on
+change), so they re-rendered correctly; the tab layout had no such
+subscription. Fixed by subscribing to `s.language` directly — the one field
+guaranteed to change on every language switch, explicit rather than a proxy.
+**Lesson for future no-op-subscription forcing hooks: subscribe to the field
+that actually changes for the event in question, not one that happens to
+change for a different, related reason.**
+
 ## Related notes
 
 - [[smart-input-classifier]] — shipped in the same session; French keyword

@@ -6,8 +6,10 @@ import { t } from '../../lib/i18n';
 
 export default function TabLayout() {
   // Subscribed purely to force a re-render when the language changes, since
-  // t() reads a module-level variable rather than a Zustand field.
-  useBudgetStore((s) => s.symbol);
+  // t() reads a module-level variable rather than a Zustand field. Must be
+  // `language` specifically — `symbol` only changes with country/currency,
+  // not with an explicit language-only switch via setLanguage().
+  useBudgetStore((s) => s.language);
 
   return (
     <Tabs

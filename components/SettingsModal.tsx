@@ -52,6 +52,9 @@ export function SettingsModal({ visible, onClose }: { visible: boolean; onClose:
   const [keywordsOpen, setKeywordsOpen] = useState(false);
   const [accountsOpen, setAccountsOpen] = useState(false);
   const [goalsOpen, setGoalsOpen] = useState(false);
+  const [countryExpanded, setCountryExpanded] = useState(false);
+
+  const selectedCountry = COUNTRIES.find((c) => c.code === country);
 
   useEffect(() => {
     if (visible) {
@@ -60,8 +63,14 @@ export function SettingsModal({ visible, onClose }: { visible: boolean; onClose:
         wants:   balances.wants   ? String(balances.wants)   : '',
         savings: balances.savings ? String(balances.savings) : '',
       });
+      setCountryExpanded(false);
     }
   }, [visible, balances]);
+
+  function selectCountry(code: string) {
+    setCountry(code);
+    setCountryExpanded(false);
+  }
 
   async function handleDone() {
     for (const cat of ['needs', 'wants', 'savings'] as Category[]) {
@@ -91,23 +100,38 @@ export function SettingsModal({ visible, onClose }: { visible: boolean; onClose:
             contentContainerStyle={styles.bodyContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
           >
             <Text style={styles.sectionLabel}>{t('settings.country')}</Text>
-            {COUNTRIES.map((c) => {
-              const active = c.code === country;
-              return (
-                <TouchableOpacity
-                  key={c.code}
-                  style={[styles.row, active && styles.rowActive]}
-                  onPress={() => setCountry(c.code)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.countryName, active && styles.countryNameActive]}>{c.name}</Text>
-                  <Text style={styles.currencyCode}>{c.symbol} {c.currency}</Text>
-                  {active && <Icon name="check" size={16} color="#00FF87" style={styles.check} />}
-                </TouchableOpacity>
-              );
-            })}
+            <TouchableOpacity
+              style={[styles.row, countryExpanded && styles.rowActive]}
+              onPress={() => setCountryExpanded((e) => !e)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.countryName}>{selectedCountry?.name}</Text>
+              <Text style={styles.currencyCode}>{selectedCountry?.symbol} {selectedCountry?.currency}</Text>
+              <Icon name={countryExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={theme.colors.textMuted} />
+            </TouchableOpacity>
+
+            {countryExpanded && (
+              <ScrollView style={styles.countryList} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+                {COUNTRIES.map((c) => {
+                  const active = c.code === country;
+                  return (
+                    <TouchableOpacity
+                      key={c.code}
+                      style={[styles.row, active && styles.rowActive]}
+                      onPress={() => selectCountry(c.code)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.countryName, active && styles.countryNameActive]}>{c.name}</Text>
+                      <Text style={styles.currencyCode}>{c.symbol} {c.currency}</Text>
+                      {active && <Icon name="check" size={16} color="#00FF87" style={styles.check} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
 
             <Text style={styles.sectionLabel}>{t('settings.language')}</Text>
             <Text style={styles.balancesHint}>{t('settings.languageHint')}</Text>
@@ -210,6 +234,7 @@ const styles = StyleSheet.create({
   sectionLabel: { ...theme.typography.labelLarge, color: theme.colors.textMuted, marginTop: theme.spacing.xs },
   body: { maxHeight: 420 },
   bodyContent: { gap: theme.spacing.sm, paddingBottom: theme.spacing.xs },
+  countryList: { maxHeight: 220, marginBottom: theme.spacing.sm },
   balancesHint: { ...theme.typography.bodyMedium, color: theme.colors.textMuted },
   balanceRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
   balanceDot: { width: 8, height: 8, borderRadius: theme.radius.full },
