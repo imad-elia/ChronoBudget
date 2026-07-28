@@ -86,8 +86,13 @@ export function SettingsModal({ visible, onClose }: { visible: boolean; onClose:
           <Text style={styles.title}>{t('settings.title').toUpperCase()}</Text>
           <Text style={styles.subtitle}>{t('settings.regionHint')}</Text>
 
-          <Text style={styles.sectionLabel}>{t('settings.country')}</Text>
-          <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.body}
+            contentContainerStyle={styles.bodyContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Text style={styles.sectionLabel}>{t('settings.country')}</Text>
             {COUNTRIES.map((c) => {
               const active = c.code === country;
               return (
@@ -103,68 +108,68 @@ export function SettingsModal({ visible, onClose }: { visible: boolean; onClose:
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
 
-          <Text style={styles.sectionLabel}>{t('settings.language')}</Text>
-          <Text style={styles.balancesHint}>{t('settings.languageHint')}</Text>
-          <View style={styles.languageRow}>
-            {SUPPORTED_LANGUAGES.map((lang) => {
-              const active = lang === language;
-              return (
-                <TouchableOpacity
-                  key={lang}
-                  style={[styles.languageChip, active && styles.languageChipActive]}
-                  onPress={() => setLanguage(lang)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.languageChipLabel, active && styles.languageChipLabelActive]}>
-                    {LANGUAGE_LABEL[lang]}
-                  </Text>
-                  {active && <Icon name="check" size={14} color="#00FF87" />}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <Text style={styles.sectionLabel}>{t('settings.balances')}</Text>
-          <Text style={styles.balancesHint}>{t('settings.balancesHint')}</Text>
-          {BALANCE_CATEGORIES.map((cat) => (
-            <View key={cat.id} style={styles.balanceRow}>
-              <View style={[styles.balanceDot, { backgroundColor: cat.color }]} />
-              <Text style={[styles.balanceLabel, { color: cat.color }]}>{t(CATEGORY_LABEL_KEY[cat.id])}</Text>
-              <View style={[styles.balanceInputWrap, { borderColor: drafts[cat.id] ? `${cat.color}60` : theme.colors.border }]}>
-                <Text style={[styles.balancePrefix, { color: cat.color }]}>{symbol}</Text>
-                <TextInput
-                  style={styles.balanceInput}
-                  placeholder={t('input.amountPlaceholder')}
-                  placeholderTextColor={theme.colors.textMuted}
-                  value={drafts[cat.id]}
-                  onChangeText={(v) => setDrafts((d) => ({ ...d, [cat.id]: v }))}
-                  keyboardType="decimal-pad"
-                  maxLength={12}
-                  selectionColor={cat.color}
-                />
-              </View>
+            <Text style={styles.sectionLabel}>{t('settings.language')}</Text>
+            <Text style={styles.balancesHint}>{t('settings.languageHint')}</Text>
+            <View style={styles.languageRow}>
+              {SUPPORTED_LANGUAGES.map((lang) => {
+                const active = lang === language;
+                return (
+                  <TouchableOpacity
+                    key={lang}
+                    style={[styles.languageChip, active && styles.languageChipActive]}
+                    onPress={() => setLanguage(lang)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.languageChipLabel, active && styles.languageChipLabelActive]}>
+                      {LANGUAGE_LABEL[lang]}
+                    </Text>
+                    {active && <Icon name="check" size={14} color="#00FF87" />}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-          ))}
 
-          <TouchableOpacity style={styles.keywordsRow} onPress={() => setAccountsOpen(true)} activeOpacity={0.7}>
-            <Icon name="bank-outline" size={16} color={theme.colors.textSecondary} />
-            <Text style={styles.keywordsLabel}>{t('settings.accounts')}</Text>
-            <Icon name="chevron-right" size={16} color={theme.colors.textMuted} />
-          </TouchableOpacity>
+            <Text style={styles.sectionLabel}>{t('settings.balances')}</Text>
+            <Text style={styles.balancesHint}>{t('settings.balancesHint')}</Text>
+            {BALANCE_CATEGORIES.map((cat) => (
+              <View key={cat.id} style={styles.balanceRow}>
+                <View style={[styles.balanceDot, { backgroundColor: cat.color }]} />
+                <Text style={[styles.balanceLabel, { color: cat.color }]}>{t(CATEGORY_LABEL_KEY[cat.id])}</Text>
+                <View style={[styles.balanceInputWrap, { borderColor: drafts[cat.id] ? `${cat.color}60` : theme.colors.border }]}>
+                  <Text style={[styles.balancePrefix, { color: cat.color }]}>{symbol}</Text>
+                  <TextInput
+                    style={styles.balanceInput}
+                    placeholder={t('input.amountPlaceholder')}
+                    placeholderTextColor={theme.colors.textMuted}
+                    value={drafts[cat.id]}
+                    onChangeText={(v) => setDrafts((d) => ({ ...d, [cat.id]: v }))}
+                    keyboardType="decimal-pad"
+                    maxLength={12}
+                    selectionColor={cat.color}
+                  />
+                </View>
+              </View>
+            ))}
 
-          <TouchableOpacity style={styles.keywordsRow} onPress={() => setGoalsOpen(true)} activeOpacity={0.7}>
-            <Icon name="piggy-bank-outline" size={16} color={theme.colors.textSecondary} />
-            <Text style={styles.keywordsLabel}>{t('settings.goals')}</Text>
-            <Icon name="chevron-right" size={16} color={theme.colors.textMuted} />
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.keywordsRow} onPress={() => setAccountsOpen(true)} activeOpacity={0.7}>
+              <Icon name="bank-outline" size={16} color={theme.colors.textSecondary} />
+              <Text style={styles.keywordsLabel}>{t('settings.accounts')}</Text>
+              <Icon name="chevron-right" size={16} color={theme.colors.textMuted} />
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.keywordsRow} onPress={() => setKeywordsOpen(true)} activeOpacity={0.7}>
-            <Icon name="tag-multiple-outline" size={16} color={theme.colors.textSecondary} />
-            <Text style={styles.keywordsLabel}>{t('settings.keywords')}</Text>
-            <Icon name="chevron-right" size={16} color={theme.colors.textMuted} />
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.keywordsRow} onPress={() => setGoalsOpen(true)} activeOpacity={0.7}>
+              <Icon name="piggy-bank-outline" size={16} color={theme.colors.textSecondary} />
+              <Text style={styles.keywordsLabel}>{t('settings.goals')}</Text>
+              <Icon name="chevron-right" size={16} color={theme.colors.textMuted} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.keywordsRow} onPress={() => setKeywordsOpen(true)} activeOpacity={0.7}>
+              <Icon name="tag-multiple-outline" size={16} color={theme.colors.textSecondary} />
+              <Text style={styles.keywordsLabel}>{t('settings.keywords')}</Text>
+              <Icon name="chevron-right" size={16} color={theme.colors.textMuted} />
+            </TouchableOpacity>
+          </ScrollView>
 
           <TouchableOpacity style={styles.done} onPress={handleDone} activeOpacity={0.8}>
             <Text style={styles.doneLabel}>{t('settings.done')}</Text>
@@ -203,7 +208,8 @@ const styles = StyleSheet.create({
   title: { ...theme.typography.labelLarge, color: theme.colors.textPrimary, textAlign: 'center', letterSpacing: 2 },
   subtitle: { ...theme.typography.bodyMedium, color: theme.colors.textMuted, textAlign: 'center', marginBottom: theme.spacing.xs },
   sectionLabel: { ...theme.typography.labelLarge, color: theme.colors.textMuted, marginTop: theme.spacing.xs },
-  list: { maxHeight: 260 },
+  body: { maxHeight: 420 },
+  bodyContent: { gap: theme.spacing.sm, paddingBottom: theme.spacing.xs },
   balancesHint: { ...theme.typography.bodyMedium, color: theme.colors.textMuted },
   balanceRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
   balanceDot: { width: 8, height: 8, borderRadius: theme.radius.full },
