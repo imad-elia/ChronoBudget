@@ -611,3 +611,208 @@ describe('goals', () => {
     expect(await database.fetchGoals()).toHaveLength(0);
   });
 });
+
+describe('clock edge cases', () => {
+  const NOW = new Date(2026, 6, 1, 12, 0, 0).getTime(); // 2026-07-01
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  // A device clock jumped far forward must not hang the app on launch:
+  // processRecurring loops once per missed occurrence, and only terminates
+  // because advance() is strictly increasing.
+  it('bounds catch-up when the clock jumps two years forward', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(NOW);
+    await database.insertRecurring({
+      amount: 10,
+      category: 'needs',
+      subcategory: 'Bills',
+      note: '',
+      frequency: 'weekly',
+    });
+
+    const twoYearsOn = new Date(2028, 6, 1, 12, 0, 0).getTime();
+    jest.spyOn(Date, 'now').mockReturnValue(twoYearsOn);
+
+    const started = performance.now();
+    const inserted = await database.processRecurring();
+    const elapsed = performance.now() - started;
+
+    // 2026-07-01 → 2028-07-01 is 731 days; one posting per 7 days, counting
+    // the anchor occurrence itself.
+    expect(inserted).toBe(105);
+    expect(elapsed).toBeLessThan(10_000);
+
+    const [rule] = await database.fetchRecurring();
+    expect(rule.nextRun).toBeGreaterThan(twoYearsOn);
+  });
+
+  it('posts nothing and leaves next_run intact when the clock moves backwards', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(NOW);
+    await database.insertRecurring({
+      amount: 25,
+      category: 'wants',
+      subcategory: 'Subscriptions',
+      note: '',
+      frequency: 'monthly',
+      startDate: new Date(2026, 7, 1, 12, 0, 0).getTime(), // future: 2026-08-01
+    });
+    const [before] = await database.fetchRecurring();
+
+    // Device clock dragged back a month.
+    jest.spyOn(Date, 'now').mockReturnValue(new Date(2026, 5, 1, 12, 0, 0).getTime());
+    expect(await database.processRecurring()).toBe(0);
+
+    const [after] = await database.fetchRecurring();
+    expect(after.nextRun).toBe(before.nextRun);
+    expect((await database.fetchCategoryTotals(null)).wants).toBe(0);
+  });
+
+  // advance() steps weekly rules by an absolute 7 days, so a DST transition
+  // shifts the local posting hour but must never skip or duplicate a week.
+  // Only meaningful under a DST-observing timezone (see the CI matrix); in
+  // UTC it still holds, trivially.
+  it('posts exactly one occurrence per week across a DST transition', async () => {
+    // 2026-03-01, before both the US and EU spring transitions.
+    jest.spyOn(Date, 'now').mockReturnValue(new Date(2026, 2, 1, 12, 0, 0).getTime());
+    await database.insertRecurring({
+      amount: 5,
+      category: 'needs',
+      subcategory: 'Transport',
+      note: '',
+      frequency: 'weekly',
+    });
+
+    // Six weeks on, spanning any spring-forward transition in between. The
+    // cutoff is late in the day on purpose: a DST shift moves each occurrence's
+    // local hour by one, and a midday cutoff would flip the last occurrence in
+    // or out of range depending on the runner's timezone.
+    jest.spyOn(Date, 'now').mockReturnValue(new Date(2026, 3, 12, 23, 0, 0).getTime());
+    const inserted = await database.processRecurring();
+    expect(inserted).toBe(7);
+    expect((await database.fetchCategoryTotals(null)).needs).toBe(35);
+
+    // The invariant that actually matters: every posting sits exactly one week
+    // after the previous one, so no week is skipped or posted twice.
+    const posted = (await database.fetchTransactions())
+      .map((row) => row.timestamp)
+      .sort((a, b) => a - b);
+    const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+    for (let i = 1; i < posted.length; i++) {
+      expect(posted[i] - posted[i - 1]).toBe(WEEK_MS);
+    }
+  });
+
+  it('files a late-night entry into the month the user is actually in', async () => {
+    const lateOnLastDay = new Date(2026, 6, 31, 23, 59, 0).getTime(); // 2026-07-31 23:59 local
+    jest.spyOn(Date, 'now').mockReturnValue(lateOnLastDay);
+    await database.insertTransaction(12, 'wants', 'Dining', 'late snack');
+
+    expect(database.currentMonthKey()).toBe('2026-07');
+    expect((await database.fetchCategoryTotals('2026-07')).wants).toBe(12);
+    expect((await database.fetchCategoryTotals('2026-08')).wants).toBe(0);
+  });
+});
+
+describe('money-column validation audit', () => {
+  // Every writer taking an amount must refuse non-positive values before
+  // anything reaches SQLite. goals.target_amount is the one column with no
+  // CHECK constraint behind it, so its guard lives in db/database.ts.
+  it('insertTransaction rejects zero and negative amounts', async () => {
+    await expect(database.insertTransaction(0, 'needs', '', '')).rejects.toThrow();
+    await expect(database.insertTransaction(-5, 'needs', '', '')).rejects.toThrow();
+  });
+
+  it('insertGoal and updateGoal reject zero and negative targets', async () => {
+    await expect(database.insertGoal('Goal', 0)).rejects.toThrow();
+    await expect(database.insertGoal('Goal', -5)).rejects.toThrow();
+  });
+
+  it('insertTransfer rejects zero and negative amounts', async () => {
+    await database.insertAccount('A', 10);
+    await database.insertAccount('B', 10);
+    const [a, b] = await database.fetchAccounts();
+
+    await expect(database.insertTransfer(a.id, b.id, 0, '')).rejects.toThrow();
+    await expect(database.insertTransfer(a.id, b.id, -5, '')).rejects.toThrow();
+
+    // And the rollback left both balances untouched.
+    const accounts = await database.fetchAccounts();
+    expect(accounts.map((acc) => acc.balance)).toEqual([10, 10]);
+  });
+
+  it('setLimit and setBalance delete rather than store a non-positive amount', async () => {
+    await database.setLimit('needs', 100);
+    await database.setBalance('needs', 100);
+    await database.setLimit('needs', -1);
+    await database.setBalance('needs', -1);
+    expect((await database.fetchLimits()).needs).toBe(0);
+    expect((await database.fetchBalances()).needs).toBeUndefined();
+  });
+});
+
+describe('numeric and text robustness', () => {
+  it('keeps running balances within a cent across hundreds of operations', async () => {
+    await database.insertAccount('Checking', 100);
+    const [account] = await database.fetchAccounts();
+
+    for (let i = 0; i < 300; i++) {
+      await database.insertTransaction(0.07, 'needs', 'Groceries', '', account.id);
+    }
+    const rows = await database.fetchTransactions(150);
+    for (const row of rows) {
+      await database.deleteTransaction(row.id);
+    }
+
+    const [after] = await database.fetchAccounts();
+    // 300 debits then 150 credits of 0.07 => 100 - (150 * 0.07) = 89.5
+    expect(Math.abs(after.balance - 89.5)).toBeLessThan(0.01);
+  });
+
+  it('round-trips small, large and long values without loss', async () => {
+    const longNote = 'x'.repeat(10_000);
+    await database.insertTransaction(0.01, 'needs', 'Groceries', longNote);
+    await database.insertTransaction(99999999.99, 'wants', 'Travel', '');
+
+    const rows = await database.fetchTransactions();
+    const small = rows.find((r) => r.category === 'needs')!;
+    const large = rows.find((r) => r.category === 'wants')!;
+
+    expect(small.amount).toBe(0.01);
+    expect(small.note).toHaveLength(10_000);
+    expect(large.amount).toBe(99999999.99);
+    expect(String(large.amount)).not.toContain('e');
+  });
+
+  it('stores injection-shaped and unicode text verbatim', async () => {
+    const nasty = String.fromCharCode(39) + '; DROP TABLE transactions;-- café "quoted", comma';
+    await database.insertTransaction(5, 'wants', 'Dining', nasty);
+
+    const [row] = await database.fetchTransactions();
+    expect(row.note).toBe(nasty);
+    // The table still exists and still holds exactly the one row.
+    expect(await database.fetchTransactions()).toHaveLength(1);
+  });
+});
+
+describe('CSV import de-duplication (pinned behaviour)', () => {
+  // insertTransactionsBulk does no de-duplication, so importing the same
+  // export twice doubles the data. Pinned deliberately: this is an open
+  // product question (HIST-10), and changing it should be a decision rather
+  // than an accident.
+  it('doubles the totals when the same payload is imported twice', async () => {
+    const payload = [
+      { amount: 10, category: 'needs' as const, subcategory: 'Groceries', note: '', timestamp: 1750000000000 },
+      { amount: 20, category: 'wants' as const, subcategory: 'Dining', note: '', timestamp: 1750100000000 },
+    ];
+
+    await database.insertTransactionsBulk(payload);
+    await database.insertTransactionsBulk(payload);
+
+    const totals = await database.fetchCategoryTotals(null);
+    expect(totals.needs).toBe(20);
+    expect(totals.wants).toBe(40);
+    expect(await database.fetchTransactions()).toHaveLength(4);
+  });
+});
