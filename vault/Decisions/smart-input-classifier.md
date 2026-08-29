@@ -56,8 +56,12 @@ plus a direct-teach UI for manually adding keywords.
 ## UX
 
 - **Both** input modes show a live "→ Category · Subcategory" preview.
-- **Fast:** single smart field; always follows the guess; "change" reveals the
-  category/subcategory override chips.
+- **Fast:** single smart field; always follows the guess; tapping the preview
+  itself ("Needs · Dining", with a small inline pencil icon) reveals the
+  category/subcategory override chips (2026-08-29 — previously a separate
+  "change" pencil+label button; consolidated into one tap target on the
+  preview text, matching the tap-the-chip-to-change-it pattern used by every
+  other chip in the app).
 - **Detailed:** keeps explicit chips + note; typing the note **auto-selects** the
   chips, but only on a real keyword match, so it never fights a manual pick. Any
   manual chip tap sets `overridden` and stops auto-overriding for that entry.
@@ -133,6 +137,35 @@ param was already a plain trimmed string with no fast/detailed distinction.
 Updated the one test that pinned the old empty-note behavior
 (`components/__tests__/ExpenseInput.test.tsx`, the `"15 coffee"` submit
 assertion, `''` → `'coffee'`).
+
+## Manual override stuck across unrelated entries (2026-08-29, later)
+
+User report: type "15 coffee" (detects Wants · Dining), manually override to
+Needs · Groceries via the preview tap, then clear the field completely and
+type "15 coffee" again — it stayed on Needs · Groceries instead of
+re-detecting Wants · Dining.
+
+Root cause: `overridden` (set by `selectCategory`/`selectSubcategory`) is a
+plain boolean with no concept of "which entry" it applies to. The auto-apply
+effect (`useEffect` watching `detection`/`overridden`/`mode`) skips entirely
+whenever `overridden` is true, and nothing ever set it back to `false` except
+a full form reset after a successful submit (`resetFields()`, called from
+`handleSubmit`). So a manual override, once made, silently stuck for every
+subsequent entry typed in the same session until the user actually submitted
+something — even a fully unrelated fresh entry.
+
+Fixed by resetting `overridden` (and closing the override panel,
+`showOverride`) whenever the fast-mode field is cleared back to empty
+(`onChangeText` on the smart field, in `ExpenseInput.tsx`) — a fully cleared
+field is the natural signal for "starting a new entry," distinct from just
+continuing to edit/refine the current one (which intentionally keeps
+respecting the override, so a manual pick doesn't get clobbered mid-edit).
+Confirms the existing intended behavior: **detection is per-entry and
+resets on its own; only explicit corrections at submit time (`overridden ||
+!matched`) feed the learning table** — clearing the field must not require
+submitting first to "unstick" a stale override. Added a regression test
+(`components/__tests__/ExpenseInput.test.tsx`) covering exactly this
+override → clear → retype → re-detect sequence.
 
 ## Related notes
 

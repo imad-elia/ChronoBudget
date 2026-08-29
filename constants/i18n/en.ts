@@ -40,7 +40,6 @@ export const en = {
   'input.custom': 'Custom',
   'input.add': 'Add',
   'input.goesTo': 'goes to',
-  'input.change': 'change',
   'input.errAmount': 'Enter a valid amount.',
   'input.errPositive': 'Amount must be greater than zero.',
   'input.errTooLarge': 'Amount is too large.',

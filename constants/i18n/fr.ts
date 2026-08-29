@@ -40,7 +40,6 @@ export const fr: Record<StringKey, string> = {
   'input.custom': 'Personnalisé',
   'input.add': 'Ajouter',
   'input.goesTo': 'va dans',
-  'input.change': 'changer',
   'input.errAmount': 'Saisissez un montant valide.',
   'input.errPositive': 'Le montant doit être supérieur à zéro.',
   'input.errTooLarge': 'Le montant est trop élevé.',

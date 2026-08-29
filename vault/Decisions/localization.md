@@ -236,6 +236,33 @@ now holds only the Next/Got it button (full width). Removed the now-unused
 `flexDirection: 'row', justifyContent: 'space-between'` holding Back (always
 shown) and Skip tutorial (hidden on the last step).
 
+## Tour card fixed to a stable top position (2026-08-29, later still)
+
+User report: the tour popup changed vertical position every time Next was
+tapped. Root cause was two incompatible positioning rules used across the 4
+steps: Welcome/Budget Limits centered the card vertically (`styles.cardCenter`,
+relying on `styles.overlay`'s `justifyContent/alignItems: 'center'`), while
+Fast Mode/Detailed Mode pinned the card's **bottom** edge 220px from the
+screen bottom (`styles.cardAnchored` + inline `bottom: 220`) — with a small
+decorative down-pointing triangle underneath, originally meant to point at
+the Fast/Detailed toggle on the dashboard behind the overlay. Switching
+between these two coordinate systems every step caused the visible jump;
+even within the bottom-anchored steps, a taller step's card grew *upward*
+since only the bottom was fixed.
+
+Fixed by using **one rule for all 4 steps**: pin the card's **top** edge at a
+fixed proportion of screen height — `top: Math.round(windowHeight *
+TOUR_TOP_RATIO)`, `TOUR_TOP_RATIO = 0.16` — via `useWindowDimensions()`
+(already used elsewhere in this file for similar layout math, e.g. the
+country/balance phases' `windowHeight - 80` height caps). Since only `top` is
+fixed and card height stays intrinsic, a step with more text now just
+extends further down the screen instead of moving or re-centering.
+`anchorFromBottom` was removed from the `Step` type/`STEPS` array (no longer
+needed), `cardAnchored`/`arrowDown` were replaced by a single `cardTour`
+style, and the now-pointless pointer triangle was removed. Scoped strictly to
+the tour phase — the country/balance phases' own layout (`cardCenter`,
+`cardCountry`) is untouched.
+
 ## Related notes
 
 - [[smart-input-classifier]] — shipped in the same session; French keyword

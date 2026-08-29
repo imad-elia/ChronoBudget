@@ -29,9 +29,6 @@ interface Step {
   icon: string;
   titleKey: StringKey;
   bodyKey: StringKey;
-  // Approximate position of the highlight tooltip (from bottom of screen)
-  // undefined = center (welcome screen)
-  anchorFromBottom?: number;
 }
 
 const STEPS: Step[] = [
@@ -44,21 +41,23 @@ const STEPS: Step[] = [
     icon: 'lightning-bolt',
     titleKey: 'onboarding.tourFastTitle',
     bodyKey: 'onboarding.tourFastBody',
-    anchorFromBottom: 220,
   },
   {
     icon: 'format-list-bulleted',
     titleKey: 'onboarding.tourDetailedTitle',
     bodyKey: 'onboarding.tourDetailedBody',
-    anchorFromBottom: 220,
   },
   {
     icon: 'tune-variant',
     titleKey: 'onboarding.tourLimitsTitle',
     bodyKey: 'onboarding.tourLimitsBody',
-    anchorFromBottom: undefined, // center — header is too high to anchor reliably
   },
 ];
+
+// Every tour step anchors its card by the top edge at this fraction of
+// screen height, so the card never jumps between centered/bottom-pinned
+// positions across steps — only its bottom edge moves as text length varies.
+const TOUR_TOP_RATIO = 0.16;
 
 const BALANCE_CATEGORIES: { id: Category; color: string }[] = [
   { id: 'needs',   color: '#00FF87' },
@@ -143,8 +142,6 @@ export function OnboardingOverlay({ visible, onDone }: Props) {
       setStep((s) => s - 1);
     }
   }
-
-  const useAnchor = current.anchorFromBottom !== undefined;
 
   if (phase === 'country') {
     return (
@@ -286,18 +283,16 @@ export function OnboardingOverlay({ visible, onDone }: Props) {
         {/* Backdrop */}
         <View style={StyleSheet.absoluteFill} />
 
-        {/* Card — anchored near bottom for steps 1-2, centered otherwise */}
+        {/* Card — top-anchored at a fixed fraction of screen height on every
+            step, so it never jumps position; height stays auto, so a longer
+            step just extends further down instead of moving or recentering. */}
         <View
           style={[
             styles.card,
-            useAnchor
-              ? [styles.cardAnchored, { bottom: current.anchorFromBottom }]
-              : styles.cardCenter,
+            styles.cardTour,
+            { top: Math.round(windowHeight * TOUR_TOP_RATIO) },
           ]}
         >
-          {/* Arrow pointing down (for anchored tooltips) */}
-          {useAnchor && <View style={styles.arrowDown} />}
-
           {/* Step dots */}
           <View style={styles.dots}>
             {STEPS.map((_, i) => (
@@ -372,24 +367,11 @@ const styles = StyleSheet.create({
     // shrink (see countryStyles.panel/list) so the Continue button always fits.
     overflow: 'hidden',
   },
-  cardAnchored: {
+  cardTour: {
     position: 'absolute',
     width: '88%',
     maxWidth: 420,
     alignSelf: 'center',
-  },
-  arrowDown: {
-    position: 'absolute',
-    bottom: -12,
-    alignSelf: 'center',
-    width: 0,
-    height: 0,
-    borderLeftWidth: 12,
-    borderRightWidth: 12,
-    borderTopWidth: 12,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: theme.colors.bgSecondary,
   },
   dots: {
     flexDirection: 'row',

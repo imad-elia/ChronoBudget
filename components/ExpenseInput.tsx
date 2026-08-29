@@ -319,12 +319,14 @@ export function ExpenseInput() {
     );
   };
 
-  // Live "goes to" preview shown once the user has typed something.
+  // Live "goes to" preview shown once the user has typed something. In fast
+  // mode the whole "Category · Subcategory" text is itself the tap target
+  // that reveals the override chips — same "tap the chip to change it"
+  // pattern used everywhere else in this app, no separate "change" button.
   const renderPreview = () => {
     if (!hasEntry) return null;
-    return (
-      <View style={styles.previewRow}>
-        <Icon name="arrow-right-thin" size={15} color={activeColor} />
+    const label = (
+      <>
         <Text style={[styles.previewCategory, { color: activeColor }]}>{t(CATEGORY_LABEL_KEY[category])}</Text>
         {subDisplay ? (
           <>
@@ -332,16 +334,23 @@ export function ExpenseInput() {
             <Text style={styles.previewSub}>{subDisplay}</Text>
           </>
         ) : null}
-        {mode === 'fast' && (
+      </>
+    );
+    return (
+      <View style={styles.previewRow}>
+        <Icon name="arrow-right-thin" size={15} color={activeColor} />
+        {mode === 'fast' ? (
           <TouchableOpacity
-            style={styles.changeBtn}
+            style={styles.previewTappable}
             onPress={() => setShowOverride((v) => !v)}
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Icon name="pencil-outline" size={12} color={theme.colors.textMuted} />
-            <Text style={styles.changeLabel}>{t('input.change')}</Text>
+            {label}
+            <Icon name="pencil-outline" size={11} color={theme.colors.textMuted} style={styles.previewEditIcon} />
           </TouchableOpacity>
+        ) : (
+          label
         )}
       </View>
     );
@@ -384,7 +393,17 @@ export function ExpenseInput() {
               placeholder={t('input.smartPlaceholder')}
               placeholderTextColor={theme.colors.textMuted}
               value={raw}
-              onChangeText={(v) => { setRaw(v); setError(null); }}
+              onChangeText={(v) => {
+                setRaw(v);
+                setError(null);
+                // A fully cleared field means a brand-new entry — drop any
+                // manual override so detection guesses fresh next time,
+                // instead of sticking with a choice made for the last entry.
+                if (v.trim() === '') {
+                  setOverridden(false);
+                  setShowOverride(false);
+                }
+              }}
               returnKeyType="done"
               maxLength={60}
               autoCapitalize="none"
@@ -605,20 +624,13 @@ const styles = StyleSheet.create({
     ...theme.typography.bodyMedium,
     color: theme.colors.textSecondary,
   },
-  changeBtn: {
+  previewTappable: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    marginLeft: 'auto',
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 4,
-    borderRadius: theme.radius.full,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    gap: 6,
   },
-  changeLabel: {
-    ...theme.typography.labelSmall,
-    color: theme.colors.textMuted,
+  previewEditIcon: {
+    marginLeft: 2,
   },
   subRow: {
     gap: theme.spacing.sm,

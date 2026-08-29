@@ -63,6 +63,26 @@ describe('ExpenseInput — fast mode', () => {
     await waitFor(() => expect(db.insertTransaction).toHaveBeenCalled());
     expect(db.learnKeyword).toHaveBeenCalledWith('xyzzy', 'needs', 'Xyzzy');
   });
+
+  it('resumes auto-detection on a fresh entry after a manual override, once the field is fully cleared', async () => {
+    await render(<ExpenseInput />);
+    const field = screen.getByPlaceholderText(SMART_PLACEHOLDER);
+
+    // Detects Wants/Dining, then the user manually overrides to Needs/Groceries.
+    await fireEvent.changeText(field, '15 coffee');
+    await waitFor(() => expect(screen.getByText('Dining')).toBeTruthy());
+    await fireEvent.press(screen.getByText('Wants'));
+    await fireEvent.press(screen.getByText('Needs'));
+    await fireEvent.press(screen.getByText('Groceries'));
+    await waitFor(() => expect(screen.getAllByText('Groceries').length).toBeGreaterThan(0));
+
+    // Clearing the field entirely and typing the same entry again should
+    // resolve to the seed detection again, not stick with the override.
+    await fireEvent.changeText(field, '');
+    await fireEvent.changeText(field, '15 coffee');
+    await waitFor(() => expect(screen.getByText('Dining')).toBeTruthy());
+    expect(screen.getByText('Wants')).toBeTruthy();
+  });
 });
 
 describe('ExpenseInput — mode toggle', () => {
