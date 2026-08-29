@@ -301,13 +301,13 @@ function DashboardHeader({ totals, onOpenLimits, onOpenSettings, onOpenRecurring
           <Text style={headerStyles.balance} numberOfLines={1} adjustsFontSizeToFit>{formatted}</Text>
         </View>
         <View style={headerStyles.headerActions}>
-          <TouchableOpacity style={headerStyles.iconBtn} onPress={onOpenRecurring} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity testID="open-recurring" accessibilityLabel="Recurring transactions" style={headerStyles.iconBtn} onPress={onOpenRecurring} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Icon name="autorenew" size={20} color={theme.colors.textMuted} />
           </TouchableOpacity>
-          <TouchableOpacity style={headerStyles.iconBtn} onPress={onOpenLimits} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity testID="open-limits" accessibilityLabel="Budget limits" style={headerStyles.iconBtn} onPress={onOpenLimits} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Icon name="tune-variant" size={20} color={theme.colors.textMuted} />
           </TouchableOpacity>
-          <TouchableOpacity style={headerStyles.iconBtn} onPress={onOpenSettings} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity testID="open-settings" accessibilityLabel="Settings" style={headerStyles.iconBtn} onPress={onOpenSettings} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Icon name="cog-outline" size={20} color={theme.colors.textMuted} />
           </TouchableOpacity>
         </View>
