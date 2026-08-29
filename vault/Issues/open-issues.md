@@ -4,6 +4,26 @@
 
 None currently.
 
+## Found while automating the test plan (2026-08-29, later session)
+
+See [[2026-08-29c-session]] and [[testing-strategy]].
+
+### Fixed
+
+- **The sqlite test mock never ran a real transaction.** `__mocks__/expo-sqlite.ts` implemented `withTransactionAsync` as `await callback()` — no BEGIN, no COMMIT, no ROLLBACK. Every existing assertion about money moving "atomically" (account debits, goal progress, recurring catch-up) was really asserting the statements ran in order; a mid-transaction failure would have left partial writes with nothing to catch it. Fixed to issue real SQL with ROLLBACK on throw. Nothing broke once it was real — the behaviour was correct, it just had no coverage. New regression test: `insertTransfer` debits the source account before the transfer row insert fails on its foreign key, so without a real ROLLBACK the debit survives and money vanishes.
+- **Jest was running the stale worktree's mock, not the project's.** jest-haste-map found two manual mocks named `expo-sqlite` — `__mocks__/expo-sqlite.ts` and a copy under `.claude/worktrees/exciting-bose-b67c07/` — and resolved the worktree's. This meant the entire DB suite had been exercising a mock nobody was editing, and it is why the transaction fix above appeared not to work at first. Fixed with `modulePathIgnorePatterns` in the Jest config rather than by deleting the worktree, which is yours to remove. This also cleared the long-standing parallel-worker timeouts: the suite went from six failing suites in 24s to clean in 7s, so `npm test` is trustworthy again without `--runInBand`.
+- **A seventh frozen-label instance, found by the new static check on its first run.** `RecurringModal.tsx`'s `FREQUENCY_LABEL` computed `t()` at module scope, freezing the Weekly/Monthly/Yearly labels in the recurring-rule list to whichever locale was active at import. Same bug class as the six before it, and the correct keys-only pattern (`FREQUENCIES` with `labelKey`) sat three lines above it in the same file. Fixed by switching to a `FREQUENCY_LABEL_KEY` map resolved with `t()` at render. `scripts/check-frozen-i18n.ts` now fails the build on any recurrence.
+
+### Open — needs a decision, not a fix
+
+- **`textMuted` fails WCAG AA contrast.** `#4A5168` measures **2.51:1** on `bgSecondary` (hints and empty states on sheets) and **2.25:1** on `surface` (placeholders inside inputs), against a 4.5:1 floor for body text. This is the same token that already had to be abandoned once, when the BentoCard "Remaining" line proved unreadable and was moved to `textSecondary`. Raising it changes the calm, low-glare look the OLED palette exists for, so this is a product call rather than a mechanical fix. Baselined in `scripts/check-contrast.ts` as a visible warning on every run — not silently fixed, not silently ignored. If either pair later passes, the check *fails* until the marker is removed, so the pair returns to being protected. Manual case `T-A11Y-03` still covers text over gradients and translucent overlays, which a script cannot judge.
+- **Six untranslated strings in Expo template scaffolding.** `app/+not-found.tsx`, `app/modal.tsx` and `components/EditScreenInfo.tsx` render hardcoded English. Two of the three files are unreachable leftovers; `+not-found.tsx` is reachable, but only via a bad deep link. Allowlisted in `scripts/check-hardcoded-strings.ts` so the check can hard-fail on new violations in product code today. Resolve by translating `+not-found` and deleting the other two, then removing them from the allowlist.
+- **CSV re-import silently doubles the data.** `insertTransactionsBulk` performs no de-duplication, so importing the same export twice doubles every total. Now pinned by a test so the behaviour cannot change by accident, but the product question is still open: warn the user before import, de-duplicate on timestamp+amount+note, or accept it and document it. Manual case `HIST-10`.
+
+### Watch
+
+- **One unreproduced parallel-run failure.** A single `npm test` run reported 4 failures across 4 suites while the Playwright dev server was still running; the same command passed on the three runs immediately after, plus a serial run, and both timezone matrix runs passed. Most likely CPU contention rather than a real defect, but it is recorded here rather than dismissed. If it recurs without a dev server running, it is worth a proper look.
+
 ## Found by code review during QA test-plan authoring (2026-08-29, fixed same session)
 
 All three were found by reading `db/database.ts` while writing the production-readiness test plan — none were user-reported, and none were caught by the existing 153-test suite because each sits in a gap the automation structurally cannot reach (timezone-dependent SQL, a guard whose bypass only fires against real FK enforcement, and a missing schema constraint that the UI happens to shadow). Each now has a regression test. See [[2026-08-29b-session]].

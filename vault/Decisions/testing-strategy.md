@@ -40,6 +40,62 @@ The project had zero test infrastructure — no runner, no config, no CI — and
 - `db/database.ts` — schema migration ladder (fresh DB → `user_version = 6`, all 6 tables), a real `CHECK` constraint violation, migration idempotency (re-running `openAndMigrate()` against already-migrated data), settings CRUD, limits/balances delete-on-`<=0` convention, transactions CRUD + totals, learned-keyword upsert, `processRecurring` catch-up posting (multiple missed occurrences via real `advance()`), `fetchMonthlyTotals` bucketing.
 - `e2e/` (Playwright, web) — onboarding flow end-to-end, add/edit/delete a transaction from the dashboard, a transaction appearing in History, and Trends rendering with no console errors.
 
+## Automation pass — 2026-08-29 (Tiers 1 + 2 of the manual test plan)
+
+Written after the 190-case manual release plan, to automate the ~85 cases a Node/browser harness can genuinely stand in for. Native remains uncovered by choice — see "What is deliberately not covered" below.
+
+### Two infrastructure defects found first
+
+- **The transaction mock was a no-op.** `__mocks__/expo-sqlite.ts` implemented `withTransactionAsync` as `await callback()` — no BEGIN, no COMMIT, no ROLLBACK. Every assertion about money moving "atomically" was really asserting statement order. It now issues real SQL with ROLLBACK on throw. No app defect surfaced once it was fixed, but nothing had been proving the property either.
+- **Jest was loading a stale mock.** jest-haste-map found two manual mocks named `expo-sqlite` — the project's and a copy under `.claude/worktrees/exciting-bose-b67c07/` — and resolved the worktree's. The DB suite had never run against the project's own mock. Fixed with `modulePathIgnorePatterns` rather than by deleting the worktree, which is the user's to remove. This also cleared the parallel-worker timeouts that made a plain `npx jest` run untrustworthy: the suite went from six failing suites in 24s to clean in 7s.
+
+Lesson worth keeping: a duplicate module tree does not merely produce warnings, it silently changes which code is under test.
+
+### What was added
+
+- **Migration ladder** (`db/__tests__/migrations.test.ts`) — seeds a populated DB at each shipped version (v3–v7) from frozen DDL snapshots, migrates it forward with the real `openAndMigrate()`, and asserts v8 is reached with every table present and no row lost. Plus a guard that the destructive v1 block never runs against a DB already at v1+. The DDL snapshots are history and must never be "updated" to match the current schema — that would defeat the test. Mutation-checked: disabling the v8 migration turns them red.
+- **Clock edges** — a two-year forward jump (bounded catch-up, 105 postings, terminates), a backward clock (posts nothing, `next_run` intact), a DST transition (postings stay exactly one week apart), and a late-night month boundary.
+- **Validation, robustness and pinned behaviour** — every money writer rejects non-positives; running balances stay within a cent across 450 operations; long, tiny, large, injection-shaped and unicode values round-trip. CSV re-import is pinned as *doubling* the data, since no de-duplication exists and that is an open product question (HIST-10), not an accident.
+- **CSV variants** — CRLF, trailing blank lines, accents, quoted commas, doubled quotes, and a UTF-8 BOM. The BOM case documents an incidental correctness: JS `trim()` treats U+FEFF as whitespace, so the header check is BOM-proof only as long as it keeps using `trim()`.
+- **CI timezone matrix** — the `test` job now runs in UTC, Pacific/Auckland and America/Los_Angeles.
+- **Static checks** (`scripts/`, via `npm run check`, its own CI job) — frozen `t()` at module scope, hardcoded UI strings, release config plus the offline claim, and WCAG contrast.
+- **Playwright specs** — a French language sweep across every surface, onboarding navigation, fast input, accounts/goals, and a zero-external-request assertion.
+
+### The timezone matrix, and why the variable is CB_TZ
+
+The localtime bug fixed earlier the same day could not fail in CI, because `ubuntu-latest` runs in UTC where local and UTC bucketing are identical by definition.
+
+Spiked before committing to the approach, and both assumptions held: sql.js resolves SQLite's `localtime` modifier through Emscripten, which derives its offset from JS `Date`, so setting the timezone in-process reaches the SQL layer. Verified by deliberate failure — with the `localtime` fix reverted, the UTC job still passes while Auckland fails 58 vs 100, exactly the misbucketed first-of-month transaction.
+
+**The knob is `CB_TZ`, not `TZ`.** Under Git Bash on Windows, MSYS intercepts and mangles `TZ`, so neither `TZ=... npx jest` nor `export TZ=...` reaches node.exe — `process.env.TZ` arrives undefined. `CB_TZ` passes through untouched on every platform, and `jest.globalSetup.js` assigns `process.env.TZ` from it before Jest forks its workers, which inherit the environment.
+
+Any new date-bucketing query needs the `'localtime'` modifier. This has been fixed twice now.
+
+### Static checks — design notes
+
+Written against the TypeScript compiler API and run by Node 24's native type stripping, so no new dependency was needed. `tsconfig.json` gained `"node"` types and `allowImportingTsExtensions` so the scripts are typechecked alongside the app.
+
+- `check-frozen-i18n` flags `t()` whose nearest enclosing function is null. Deliberately narrow — that is the exact defect and nothing else. It found a seventh live instance on its first run: `RecurringModal`'s `FREQUENCY_LABEL` froze the Weekly/Monthly/Yearly labels in the rule list, with the correct keys-only pattern sitting three lines above it.
+- `check-hardcoded-strings` flags untranslated copy inside `<Text>`. Six existing violations, all in Expo template scaffolding, are allowlisted with reasons so the check hard-fails on new violations in product code rather than warning about known ones forever — a warning in CI is a warning nobody reads.
+- `check-release-config` asserts store identity, versioning and the iOS privacy manifest are present, pins the config-plugin list so a new native module cannot slip in unconsidered, and greps app source for networking primitives that would contradict the published "data never leaves your device" claim.
+- `check-contrast` computes WCAG AA ratios for the theme's real text/surface pairs. Two known failures are baselined as visible warnings rather than silently fixed: `textMuted` is 2.51:1 on sheets and 2.25:1 on cards against a 4.5:1 floor. Raising it changes the low-glare look the palette exists for, so it needs a product decision. If either pair later passes, the check *fails* until the marker is removed, so it goes back under protection.
+
+### What is deliberately not covered
+
+A green CI run is not evidence of release readiness. Nothing here touches native WAL persistence across an app kill, upgrade-install data retention, real gestures, keyboard behaviour, share sheets, the document picker, the device matrix, real performance, or anything visual. Jest runs against `sql.js`; Playwright drives the **web** build with an in-memory database. Neither is the shipped native app.
+
+Tier 3 (Maestro on an Android emulator) is the only route to the native gaps and was deliberately deferred. The manual plan stays the release gate — this narrows it to roughly 105 cases, concentrated in the platform, privacy and store-submission suites.
+
+Two further scope calls, both recorded in the specs themselves: goal tagging and the delete-blocked path stay manual (GOAL-02 / GOAL-06), since driving the chip picker through the web renderer added selector churn without adding coverage over the SQL-level tests.
+
+### Working notes for the next person
+
+- Playwright has no `getByDisplayValue` — assert via `getByPlaceholder(...)` + `toHaveValue`, or add a testID.
+- React Native Web keeps closed `Modal`s mounted, so the same text can match in several sheets at once. Scope with `.first()` / `.last()` or a role.
+- `AccountsModal` and `GoalsModal` list views have no Done control; they close on a backdrop tap. `SettingsModal` and the form views do have one.
+- `getByText` is substring *and* case-insensitive by default; `{ exact: true }` is usually what you want.
+- The language sweep must not reload between surfaces — a reload masks exactly the bug it hunts.
+
 ## Known gaps
 None currently open. If new gaps surface (e.g. native-only behavior Playwright's web target can't exercise), log them here rather than silently letting coverage drift.
 
