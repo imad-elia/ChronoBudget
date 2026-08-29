@@ -48,7 +48,8 @@
     "web": "expo start --web",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-frozen-i18n.ts && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-hardcoded-strings.ts && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-release-config.ts && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-contrast.ts"
   },
   "private": true,
   "jest": {
@@ -60,6 +61,7 @@
     ],
     "modulePathIgnorePatterns": [
       "<rootDir>/.claude/"
-    ]
+    ],
+    "globalSetup": "<rootDir>/jest.globalSetup.js"
   }
 }

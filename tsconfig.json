@@ -3,13 +3,15 @@
   "compilerOptions": {
     "strict": true,
     "types": [
-      "jest"
+      "jest",
+      "node"
     ],
     "paths": {
       "@/*": [
         "./*"
       ]
-    }
+    },
+    "allowImportingTsExtensions": true
   },
   "include": [
     "**/*.ts",

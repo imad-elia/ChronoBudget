@@ -43,10 +43,12 @@ const FREQUENCIES: { id: Frequency; labelKey: 'recurring.weekly' | 'recurring.mo
   { id: 'yearly',  labelKey: 'recurring.yearly' },
 ];
 
-const FREQUENCY_LABEL: Record<Frequency, string> = {
-  weekly: t('recurring.weekly'),
-  monthly: t('recurring.monthly'),
-  yearly: t('recurring.yearly'),
+// Keys only — resolving these with t() here would freeze the labels to
+// whichever locale was active when this module was first imported.
+const FREQUENCY_LABEL_KEY: Record<Frequency, 'recurring.weekly' | 'recurring.monthly' | 'recurring.yearly'> = {
+  weekly: 'recurring.weekly',
+  monthly: 'recurring.monthly',
+  yearly: 'recurring.yearly',
 };
 
 function colorFor(cat: Category): string {
@@ -205,7 +207,7 @@ export function RecurringModal({ visible, onClose }: { visible: boolean; onClose
                         <View style={styles.ruleInfo}>
                           <Text style={styles.ruleLabel} numberOfLines={1}>{label}</Text>
                           <Text style={styles.ruleMeta} numberOfLines={1}>
-                            {FREQUENCY_LABEL[rule.frequency]} · {t('recurring.next', { date: formatDate(rule.nextRun) })}
+                            {t(FREQUENCY_LABEL_KEY[rule.frequency])} · {t('recurring.next', { date: formatDate(rule.nextRun) })}
                           </Text>
                         </View>
                         <Text style={[styles.ruleAmount, { color: c }]}>{formatCurrency(rule.amount)}</Text>

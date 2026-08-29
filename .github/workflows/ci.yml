@@ -9,6 +9,18 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # The date-bucketing SQL behaves differently either side of UTC, and a
+      # UTC-only runner is blind to it by definition: that is how a localtime
+      # bug shipped in fetchMonthlyTotals. Auckland is east of UTC, Los Angeles
+      # west, so between them every month-boundary case is covered in both
+      # directions. See jest.globalSetup.js for why the variable is CB_TZ.
+      matrix:
+        timezone: [UTC, Pacific/Auckland, America/Los_Angeles]
+    name: test (${{ matrix.timezone }})
+    env:
+      CB_TZ: ${{ matrix.timezone }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -18,6 +30,17 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npx tsc --noEmit
+
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check
 
   e2e:
     runs-on: ubuntu-latest
