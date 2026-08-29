@@ -153,6 +153,14 @@ export const fr: Record<StringKey, string> = {
   'onboarding.balanceTitle': 'Soldes de départ',
   'onboarding.balanceSubtitle': 'Indiquez éventuellement combien d’argent vous avez actuellement par catégorie. Laissez vide pour passer — vous pourrez le faire plus tard dans les paramètres.',
   'onboarding.balanceSkip': 'Passer pour l’instant',
+  'onboarding.tourWelcomeTitle': 'Bienvenue sur ChronoBudget',
+  'onboarding.tourWelcomeBody': 'Suivez vos dépenses en quelques secondes. Répartissez votre argent en Besoins, Envies et Épargne — et gardez le contrôle de votre budget sans effort.',
+  'onboarding.tourFastTitle': 'Mode Rapide',
+  'onboarding.tourFastBody': 'Appuyez sur ⚡ Rapide pour la saisie la plus rapide — choisissez simplement une catégorie et saisissez un montant. Terminé en deux appuis.',
+  'onboarding.tourDetailedTitle': 'Mode Détaillé',
+  'onboarding.tourDetailedBody': 'Passez en mode ☰ Détaillé pour ajouter une sous-catégorie (ex. Courses, Loyer) et une note facultative pour plus de contexte.',
+  'onboarding.tourLimitsTitle': 'Limites budgétaires',
+  'onboarding.tourLimitsBody': 'Appuyez sur l’icône des curseurs en haut du tableau de bord pour définir des limites de dépenses mensuelles. Chaque carte affiche votre progression.',
 
   // Starting balances (settings + dashboard)
   'settings.balances': 'Soldes de départ',

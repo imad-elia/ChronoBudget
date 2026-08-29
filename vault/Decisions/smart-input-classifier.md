@@ -110,6 +110,30 @@ plus a direct-teach UI for manually adding keywords.
   accented French input ("café") matches the unaccented dictionary keys used
   in `fr.ts` regardless of whether the user typed the accent.
 
+## Fast mode now saves its leftover text as the note (2026-08-29)
+
+User report: typing "10 coffee" correctly detected Wants · Dining, but "coffee"
+seemed to vanish — it wasn't saved anywhere. The classifier itself never
+discarded it (`parseEntry`/`detectCategory` in `lib/detectCategory.ts` never
+mutate or truncate the description; "coffee" survives intact as
+`parseEntry(raw).description`). The bug was one line downstream, in
+`components/ExpenseInput.tsx`'s `handleSubmit`: the `insertTransaction` call
+unconditionally passed `''` as the note for Fast-mode submissions —
+`mode === 'detailed' ? note : ''` — throwing away whatever text had been
+typed and used only transiently for classification.
+
+Fixed by passing `description` (already computed once per render at
+`ExpenseInput.tsx:66`, the leftover text after the amount is parsed out)
+instead of `''` in the Fast-mode branch: `mode === 'detailed' ? note :
+description`. Stores the **whole leftover phrase**, not just the single
+matched keyword — `detectCategory` doesn't expose which token matched, and a
+multi-word entry like "morning coffee run" is more useful saved in full than
+truncated to "coffee". No DB/schema change: `insertTransaction`'s `note`
+param was already a plain trimmed string with no fast/detailed distinction.
+Updated the one test that pinned the old empty-note behavior
+(`components/__tests__/ExpenseInput.test.tsx`, the `"15 coffee"` submit
+assertion, `''` → `'coffee'`).
+
 ## Related notes
 
 - [[web-inmemory-db]] — why web loses learned data on reload

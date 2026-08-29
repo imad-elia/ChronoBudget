@@ -153,6 +153,14 @@ export const en = {
   'onboarding.balanceTitle': 'Starting balances',
   'onboarding.balanceSubtitle': 'Optionally set how much money you currently have per category. Leave blank to skip — you can set this later in Settings.',
   'onboarding.balanceSkip': 'Skip for now',
+  'onboarding.tourWelcomeTitle': 'Welcome to ChronoBudget',
+  'onboarding.tourWelcomeBody': 'Track your spending in seconds. Split your money into Needs, Wants, and Savings — and stay on top of your budget effortlessly.',
+  'onboarding.tourFastTitle': 'Fast Mode',
+  'onboarding.tourFastBody': 'Tap ⚡ Fast for the quickest entry — just pick a category and type an amount. Done in two taps.',
+  'onboarding.tourDetailedTitle': 'Detailed Mode',
+  'onboarding.tourDetailedBody': 'Switch to ☰ Detailed to add a subcategory (e.g. Groceries, Rent) and an optional note for more context.',
+  'onboarding.tourLimitsTitle': 'Budget Limits',
+  'onboarding.tourLimitsBody': 'Tap the sliders icon at the top of the dashboard to set monthly spending limits. Each category card shows your progress.',
 
   // Starting balances (settings + dashboard)
   'settings.balances': 'Starting balances',
