@@ -486,6 +486,25 @@ describe('transfers', () => {
     expect(transfer).toMatchObject({ fromAccount: checking.id, toAccount: savings.id, amount: 40 });
   });
 
+  // Regression: proves withTransactionAsync actually rolls back. insertTransfer
+  // debits the source account, credits the destination, then INSERTs the
+  // transfer row — so a destination that does not exist fails on the foreign
+  // key *after* the source has already been debited. Without a real
+  // BEGIN/ROLLBACK the debit would survive and money would vanish.
+  it('rolls back a partially-applied transfer when the insert fails', async () => {
+    await database.insertAccount('Checking', 100);
+    const [checking] = await database.fetchAccounts();
+    const missingAccountId = checking.id + 999;
+
+    await expect(
+      database.insertTransfer(checking.id, missingAccountId, 40, ''),
+    ).rejects.toThrow();
+
+    const [after] = await database.fetchAccounts();
+    expect(after.balance).toBe(100);
+    expect(await database.fetchTransfers()).toHaveLength(0);
+  });
+
   it('does not affect category totals (transfers live outside the transactions table)', async () => {
     await database.insertAccount('Checking', 100);
     await database.insertAccount('Savings', 50);

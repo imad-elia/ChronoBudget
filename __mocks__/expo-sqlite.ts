@@ -41,8 +41,20 @@ class FakeSQLiteDatabase {
     return rows;
   }
 
+  // Real expo-sqlite wraps the callback in a genuine SQL transaction, so a
+  // throw partway through rolls the whole thing back. Mirroring that here
+  // matters: db/database.ts leans on it for every multi-statement money write
+  // (account debits, goal progress, recurring catch-up). A no-op wrapper made
+  // those tests assert ordering rather than atomicity.
   async withTransactionAsync(callback: () => Promise<void>): Promise<void> {
-    await callback();
+    this.db.run('BEGIN');
+    try {
+      await callback();
+      this.db.run('COMMIT');
+    } catch (err) {
+      this.db.run('ROLLBACK');
+      throw err;
+    }
   }
 }
 
