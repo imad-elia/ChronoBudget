@@ -37,6 +37,14 @@ A goal's `current_amount` only grows through tagged transactions — there is no
 - A small read-only goals-progress row was added to the Dashboard (`DashboardHeader` in `app/(tabs)/index.tsx`), mirroring the existing accounts-summary row — hidden when no goals exist, tapping opens `GoalsModal`.
 - Recurring rules (`RecurringModal.tsx`) do **not** get goal tagging in this pass — recurring Savings contributions to a specific goal were judged a plausible future extension, not required for v1.
 
+## Addendum — target_amount guarded in application code, not by a CHECK (2026-08-29)
+
+A QA code review found that `goals.target_amount` is the only money column in the schema without a positive constraint — `transactions.amount`, `budget_limits.amount`, `transfers.amount` all carry `CHECK(… > 0)` and `category_balance.amount` carries `>= 0`. A non-positive target divides by zero in `ProgressBar`'s fill maths.
+
+Fixed with an `assertPositiveTarget()` guard in `insertGoal`/`updateGoal` (`db/database.ts`) rather than a v9 migration. SQLite cannot `ALTER TABLE … ADD CONSTRAINT`; adding a real `CHECK` means create-copy-drop-rename, and `goals` is referenced by `transactions.goal_id` with `PRAGMA foreign_keys = ON`, so the rebuild is materially riskier than the latent defect it closes. The guard throws a `CHECK constraint failed: goals.target_amount` message so the failure reads identically to its sibling columns, and `GoalsModal`'s existing `try/catch` already surfaces it as `input.errSave`.
+
+This is consistent with existing precedent for DB-layer guards in this codebase: `learnKeyword()` early-returns on an empty key, and `setLimit()`/`setBalance()` handle `amount <= 0` in the helper rather than leaving it to the UI. If the schema is ever rebuilt for another reason, add the real `CHECK` then. See [[open-issues]], [[2026-08-29b-session]].
+
 ## Related notes
 - [[account-aware-budgeting]] — the precedent this pattern follows (dedicated entity table over extending `category_balance`)
 - [[category-balance-schema]] — the fixed-enum pattern both `accounts` and `goals` diverge from

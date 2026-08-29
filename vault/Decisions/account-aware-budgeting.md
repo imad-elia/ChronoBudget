@@ -50,6 +50,10 @@ Both v1 gaps above were closed in a follow-up pass:
 
 Generic bank-CSV import remains explicitly out of scope (confirmed with the user) — the app's CSV import stays round-trip-only against its own export format.
 
+## Addendum — the delete guard must count transfers too (2026-08-29)
+
+`deleteAccount()`'s reference check originally counted rows in `transactions` and `recurring` only, which left a hole: `transfers.from_account`/`to_account` also `REFERENCES accounts(id)`, and `foreign_keys` is `ON`. An account referenced *solely* by a transfer therefore passed the guard, and the `DELETE` then failed on the foreign key inside SQLite — a raw exception instead of the guard's intended `false` return. Fixed by adding a third count over `transfers` (either side). The rule to carry forward: **every table that gains an FK to `accounts` must also be added to this guard**, since the guard exists precisely to convert an FK failure into a polite refusal. See [[open-issues]], [[2026-08-29b-session]].
+
 ## Related notes
 - [[category-balance-schema]] — the pattern this deliberately diverges from
 - [[sqlite-schema-migration]]

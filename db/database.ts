@@ -496,9 +496,12 @@ export async function updateAccount(id: number, name: string): Promise<void> {
   await database.runAsync('UPDATE accounts SET name = ? WHERE id = ?', name.trim(), id);
 }
 
-// Refuses to delete an account still referenced by a transaction or recurring
-// rule, so historical spend never silently loses its account tag. Returns
-// false (no-op) if blocked, true if deleted.
+// Refuses to delete an account still referenced by a transaction, a recurring
+// rule or a transfer, so historical spend never silently loses its account tag.
+// Returns false (no-op) if blocked, true if deleted. The transfers check also
+// keeps this guard in step with the FK constraints: transfers.from_account /
+// to_account REFERENCE accounts(id) and foreign_keys is ON, so skipping it let
+// the DELETE fail deep in SQLite instead of returning false.
 export async function deleteAccount(id: number): Promise<boolean> {
   const database = await getDb();
   const [{ count: txCount }] = await database.getAllAsync<{ count: number }>(
@@ -509,7 +512,12 @@ export async function deleteAccount(id: number): Promise<boolean> {
     'SELECT COUNT(*) AS count FROM recurring WHERE account_id = ?',
     id,
   );
-  if (txCount > 0 || recurringCount > 0) return false;
+  const [{ count: transferCount }] = await database.getAllAsync<{ count: number }>(
+    'SELECT COUNT(*) AS count FROM transfers WHERE from_account = ? OR to_account = ?',
+    id,
+    id,
+  );
+  if (txCount > 0 || recurringCount > 0 || transferCount > 0) return false;
 
   await database.runAsync('DELETE FROM accounts WHERE id = ?', id);
   return true;
@@ -526,7 +534,18 @@ export async function fetchGoals(): Promise<Goal[]> {
   );
 }
 
+// goals.target_amount is the one money column with no CHECK constraint — adding
+// one now would mean rebuilding a table that transactions.goal_id references,
+// which is not worth the risk. Guarding here instead gives the same protection:
+// a non-positive target divides by zero in ProgressBar's fill maths.
+function assertPositiveTarget(targetAmount: number): void {
+  if (!(targetAmount > 0)) {
+    throw new Error('CHECK constraint failed: goals.target_amount must be > 0');
+  }
+}
+
 export async function insertGoal(name: string, targetAmount: number): Promise<void> {
+  assertPositiveTarget(targetAmount);
   const database = await getDb();
   await database.runAsync(
     'INSERT INTO goals (name, target_amount) VALUES (?, ?)',
@@ -536,6 +555,7 @@ export async function insertGoal(name: string, targetAmount: number): Promise<vo
 }
 
 export async function updateGoal(id: number, name: string, targetAmount: number): Promise<void> {
+  assertPositiveTarget(targetAmount);
   const database = await getDb();
   await database.runAsync(
     'UPDATE goals SET name = ?, target_amount = ? WHERE id = ?',
@@ -726,13 +746,17 @@ export async function fetchMonthlyTotals(months = 6): Promise<MonthlyTotal[]> {
     monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
   }
 
+  // 'localtime' matters: monthKeys above are built from local-time Date parts,
+  // and fetchCategoryTotals buckets in local time too. Without it SQLite would
+  // bucket in UTC, so a transaction logged near a month boundary in a non-UTC
+  // zone would land in a different month here than on the dashboard.
   const rows = await database.getAllAsync<{ month: string; category: Category; total: number }>(
     `SELECT
-       strftime('%Y-%m', datetime(timestamp / 1000, 'unixepoch')) AS month,
+       strftime('%Y-%m', datetime(timestamp / 1000, 'unixepoch', 'localtime')) AS month,
        category,
        SUM(amount) AS total
      FROM transactions
-     WHERE strftime('%Y-%m', datetime(timestamp / 1000, 'unixepoch')) >= ?
+     WHERE strftime('%Y-%m', datetime(timestamp / 1000, 'unixepoch', 'localtime')) >= ?
      GROUP BY month, category
      ORDER BY month ASC`,
     monthKeys[0],

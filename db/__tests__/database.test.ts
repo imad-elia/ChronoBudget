@@ -338,6 +338,31 @@ describe('fetchMonthlyTotals', () => {
       expect(m.savings).toBe(0);
     }
   });
+
+  // Regression: this query used to bucket in UTC while fetchCategoryTotals
+  // bucketed in local time, so a transaction logged near a month boundary in a
+  // non-UTC zone landed in a different month on Trends than on the dashboard.
+  // The two instants below sit at either edge of the current local month — the
+  // only places the disagreement can surface. Note this can only fail when the
+  // runner's timezone is not UTC (CI runs in UTC); the on-device proof is the
+  // manual T-TZ-01 case.
+  it('buckets by local time, agreeing with fetchCategoryTotals at both month edges', async () => {
+    const now = new Date();
+    const firstInstant = new Date(now.getFullYear(), now.getMonth(), 1, 0, 30).getTime();
+    const lastInstant = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 30).getTime();
+
+    await database.insertTransactionsBulk([
+      { amount: 42, category: 'wants', subcategory: 'Dining', note: '', timestamp: firstInstant },
+      { amount: 58, category: 'wants', subcategory: 'Dining', note: '', timestamp: lastInstant },
+    ]);
+
+    const monthKey = database.currentMonthKey();
+    const totals = await database.fetchCategoryTotals(monthKey);
+    const thisMonth = (await database.fetchMonthlyTotals(1)).find((m) => m.month === monthKey)!;
+
+    expect(totals.wants).toBe(100);
+    expect(thisMonth.wants).toBe(totals.wants);
+  });
 });
 
 describe('insertTransactionsBulk', () => {
@@ -419,6 +444,20 @@ describe('accounts', () => {
     const deleted = await database.deleteAccount(account.id);
     expect(deleted).toBe(false);
     expect(await database.fetchAccounts()).toHaveLength(1);
+  });
+
+  // Regression: the guard checked transactions and recurring only, so an
+  // account referenced solely by a transfer passed it and the DELETE then hit
+  // the transfers foreign key inside SQLite instead of returning false.
+  it('refuses to delete an account still referenced by a transfer, from either side', async () => {
+    await database.insertAccount('Checking', 100);
+    await database.insertAccount('Savings', 50);
+    const [checking, savings] = await database.fetchAccounts();
+    await database.insertTransfer(checking.id, savings.id, 40, '');
+
+    await expect(database.deleteAccount(checking.id)).resolves.toBe(false);
+    await expect(database.deleteAccount(savings.id)).resolves.toBe(false);
+    expect(await database.fetchAccounts()).toHaveLength(2);
   });
 
   it('deletes an account with no references', async () => {
@@ -525,6 +564,23 @@ describe('goals', () => {
     const deleted = await database.deleteGoal(goal.id);
     expect(deleted).toBe(false);
     expect(await database.fetchGoals()).toHaveLength(1);
+  });
+
+  // Regression: goals.target_amount is the one money column with no CHECK
+  // constraint, so a non-positive target would reach the DB and then divide by
+  // zero in ProgressBar's fill maths. Guarded in db/database.ts instead.
+  it('rejects a non-positive target amount on insert and on update', async () => {
+    await expect(database.insertGoal('Bad goal', 0)).rejects.toThrow(/target_amount/);
+    await expect(database.insertGoal('Bad goal', -100)).rejects.toThrow(/target_amount/);
+    await expect(database.insertGoal('Bad goal', NaN)).rejects.toThrow(/target_amount/);
+    expect(await database.fetchGoals()).toHaveLength(0);
+
+    await database.insertGoal('Car repair fund', 2000);
+    const [goal] = await database.fetchGoals();
+    await expect(database.updateGoal(goal.id, 'Car fund', 0)).rejects.toThrow(/target_amount/);
+
+    const [unchanged] = await database.fetchGoals();
+    expect(unchanged).toMatchObject({ name: 'Car repair fund', targetAmount: 2000 });
   });
 
   it('deletes a goal with no references', async () => {
