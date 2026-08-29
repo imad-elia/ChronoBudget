@@ -162,6 +162,80 @@ guaranteed to change on every language switch, explicit rather than a proxy.
 that actually changes for the event in question, not one that happens to
 change for a different, related reason.**
 
+## Onboarding tour copy translated + confirmed location-based first-time language (2026-08-29)
+
+Two loose ends closed after the user confirmed the part-6 tab bar/country-dropdown fixes were all good:
+
+- **Tour copy was hardcoded English.** `OnboardingOverlay.tsx`'s 4-step tour
+  (`STEPS` array: Welcome / Fast Mode / Detailed Mode / Budget Limits) held
+  literal `title`/`body` strings, never routed through `t()` — the only
+  onboarding step left in this state (the country and starting-balance steps
+  were already `t()`-routed). Fixed the same way as the `CATEGORY_LABEL_KEY`
+  pattern above: `Step.title`/`Step.body` became `Step.titleKey`/`bodyKey`
+  (`StringKey` references), and the render call switched from `current.title`
+  to `t(current.titleKey)` — resolved at render time, not baked into the
+  module-level `STEPS` constant. 8 new keys added to `en.ts`/`fr.ts`
+  (`onboarding.tourWelcomeTitle`/`Body`, `tourFastTitle`/`Body`,
+  `tourDetailedTitle`/`Body`, `tourLimitsTitle`/`Body`).
+- **"Can first-time language be chosen based on location?"** — investigated
+  and confirmed this was **already implemented**, no new code needed: the
+  country-picker step already pre-fills from `expo-localization`'s device
+  region (`Localization.getLocales?.()[0]?.regionCode` → `findCountry()`),
+  and `setCountry()` already defaults `language` from that country's
+  `language` field via `resolveLanguage()` — but only on a genuine first pick
+  (`getSetting('language')` unset), per the "Independent language selector"
+  section above. Since onboarding's phase order is `country` → `balance` →
+  `tour`, the language is already resolved by the time the (now-translated)
+  tour renders, so a first-time French user sees the tour in French with no
+  extra step. Confirmed via code read, not a new mechanism.
+
+Verified via `tsc --noEmit` (clean) and `npm test` (261/261 — same
+pre-existing worktree/Playwright noise as always). No live browser check this
+round, per explicit user request; awaiting manual verification.
+
+## Onboarding: back navigation across phases (2026-08-29, later)
+
+Follow-up to the tour translation above: the user asked for a way to correct a
+wrong country/currency pick without restarting onboarding. `OnboardingOverlay.tsx`'s
+three phases (`country` → `balance` → `tour`) previously only went forward — the
+balance step had no way back to country, and the tour's first step hid its Back
+button entirely (it only ever stepped backward *within* the 4-step tour array).
+
+Fixed by chaining Back across phases instead of just within the tour:
+- Tour step 0's Back button (previously hidden via `!isFirst`) now always shows
+  and calls a new `handleBack()`, which goes to the `balance` phase when
+  `step === 0`, or decrements `step` otherwise.
+- The balance phase gained a "‹ Back" link (reusing the existing `onboarding.back`
+  key — no new i18n strings needed) next to the existing "Skip for now" link,
+  in a new `countryStyles.bottomLinks` row, that calls `setPhase('country')`.
+- No change needed to the country phase itself (nothing precedes it), or to
+  state handling: `picked` (draft country selection) and `balanceDrafts` are
+  plain component state that already persists across phase switches, so
+  navigating back and forth doesn't lose in-progress input. Re-confirming a
+  (possibly different) country on re-continue re-runs the existing
+  `setCountry(picked)`, which already updates currency/symbol/language
+  correctly (see "Independent language selector" above).
+
+Deliberately used plain auto-sized text links for the new balance-phase Back
+button rather than reusing the flex-sized `styles.backBtn`/`nextBtn` pair —
+this file's own comment on `countryStyles.continueBtn` warns those flex-based
+button styles collapse to 0 height in this component's vertical (non-row)
+card layout on native Yoga; only fixed-size flex buttons hit that bug, so two
+plain text touchables in a row is safe.
+
+Verified via `tsc --noEmit` + full test suite only, per explicit user
+request (no live browser check this round).
+
+**Follow-up (same session):** the tour's Back button was moved out of the
+bordered `actions` row (next to the primary Next/Got it button) and down to
+the same row as "Skip tutorial", styled as a matching plain text link
+(`styles.skipLabel`) instead of a bordered button. The primary `actions` row
+now holds only the Next/Got it button (full width). Removed the now-unused
+`backBtn`/`backLabel`/`skipBtn` styles; added a `bottomLinks` style (mirrors
+`countryStyles.bottomLinks` added for the balance-phase Back link above) —
+`flexDirection: 'row', justifyContent: 'space-between'` holding Back (always
+shown) and Skip tutorial (hidden on the last step).
+
 ## Related notes
 
 - [[smart-input-classifier]] — shipped in the same session; French keyword

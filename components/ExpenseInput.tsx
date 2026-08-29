@@ -165,7 +165,7 @@ export function ExpenseInput() {
         amt,
         category,
         resolvedSub,
-        mode === 'detailed' ? note : '',
+        mode === 'detailed' ? note : description,
         accountId,
         category === 'savings' ? goalId : null,
       );
