@@ -34,12 +34,16 @@ describe('formatCompactCurrency', () => {
     expect(formatCompactCurrency(42)).toBe('$42.00');
   });
 
-  it('renders the "k" compact form at 1000 and above', () => {
-    expect(formatCompactCurrency(1200)).toBe('$1.2k');
+  it('renders the "K" compact form at 1000 and above', () => {
+    expect(formatCompactCurrency(1200)).toBe('$1.2K');
   });
 
-  it('renders the "k" compact form for large negative values by magnitude', () => {
-    expect(formatCompactCurrency(-1500)).toBe('$-1.5k');
+  it('renders the "K" compact form for large negative values by magnitude', () => {
+    expect(formatCompactCurrency(-1500)).toBe('$-1.5K');
+  });
+
+  it('groups thousands within the compact form past a million', () => {
+    expect(formatCompactCurrency(1001249.01)).toBe('$1,001.2K');
   });
 });
 

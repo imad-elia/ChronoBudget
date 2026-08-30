@@ -188,15 +188,32 @@ export default function HistoryScreen() {
     if (exporting || transactions.length === 0) return;
     setExporting(true);
     try {
-      const header = 'Date,Time,Category,Subcategory,Note,Amount\n';
-      const rows = transactions.map((t) => {
-        const d = new Date(t.timestamp);
+      const CATEGORY_LABEL_KEY = {
+        needs: 'category.needs',
+        wants: 'category.wants',
+        savings: 'category.savings',
+      } as const;
+      const header = [
+        t('csv.header.date'),
+        t('csv.header.time'),
+        t('csv.header.category'),
+        t('csv.header.subcategory'),
+        t('csv.header.note'),
+        t('csv.header.amount'),
+      ].join(',') + '\n';
+      const rows = transactions.map((tx) => {
+        const d = new Date(tx.timestamp);
+        // ISO date/time, not locale-formatted: parseCsv reconstructs the
+        // timestamp from these cells and needs an unambiguous format.
         const date = d.toLocaleDateString('en-CA'); // YYYY-MM-DD
         const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
         const escape = (s: string) => `"${s.replace(/"/g, '""')}"`;
-        return [date, time, t.category, escape(t.subcategory), escape(t.note), t.amount.toFixed(2)].join(',');
+        const categoryLabel = t(CATEGORY_LABEL_KEY[tx.category]);
+        return [date, time, categoryLabel, escape(subcategoryLabel(tx.subcategory)), escape(tx.note), tx.amount.toFixed(2)].join(',');
       });
-      const csv = header + rows.join('\n');
+      // Leading BOM so Excel (which sniffs encoding by BOM, not the Blob's
+      // charset hint) opens accented characters correctly instead of mojibake.
+      const csv = '﻿' + header + rows.join('\n');
 
       if (Platform.OS === 'web') {
         // Browser download via a Blob + temporary anchor — no native module needed.
@@ -215,7 +232,7 @@ export default function HistoryScreen() {
       if (!FileSystem || !Sharing) return;
       const uri = `${FileSystem.cacheDirectory}chronobudget-export.csv`;
       await FileSystem.writeAsStringAsync(uri, csv, { encoding: FileSystem.EncodingType.UTF8 });
-      await Sharing.shareAsync(uri, { mimeType: 'text/csv', dialogTitle: 'Export transactions', UTI: 'public.comma-separated-values-text' });
+      await Sharing.shareAsync(uri, { mimeType: 'text/csv', dialogTitle: t('history.exportDialogTitle'), UTI: 'public.comma-separated-values-text' });
     } finally {
       setExporting(false);
     }

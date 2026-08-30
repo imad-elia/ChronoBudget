@@ -18,6 +18,13 @@ interface BentoCardProps {
   balance?: number;
 }
 
+/** Cross-platform substitute for `adjustsFontSizeToFit`, which RN Web ignores. */
+function amountFontSize(formatted: string): number {
+  if (formatted.length <= 9) return 32;
+  if (formatted.length <= 13) return 26;
+  return 21;
+}
+
 export function BentoCard({ title, amount, color, glowColor, gradientColors, icon, limit, balance }: BentoCardProps) {
   const formatted = formatCurrency(amount);
 
@@ -26,6 +33,7 @@ export function BentoCard({ title, amount, color, glowColor, gradientColors, ico
 
   const hasLimit = !!limit && limit > 0;
   const rawRatio = hasLimit ? amount / limit : 0;
+  const isOverLimit = hasLimit && rawRatio > 1;
 
   return (
     <View style={[
@@ -47,21 +55,45 @@ export function BentoCard({ title, amount, color, glowColor, gradientColors, ico
           <Text style={[styles.title, { color }]}>{title}</Text>
         </View>
 
-        <Text style={styles.amount} numberOfLines={1} adjustsFontSizeToFit>
+        <Text style={[styles.amount, { fontSize: amountFontSize(formatted) }]} numberOfLines={1}>
           {formatted}
         </Text>
 
         {hasBalance && (
-          <Text
-            style={[styles.remaining, { color: remaining < 0 ? '#FF2D78' : theme.colors.textSecondary }]}
-            numberOfLines={1}
-          >
-            {formatCurrency(remaining)} {t('card.remaining')}
-          </Text>
+          remaining < 0 ? (
+            // Same pill/badge style as the over-limit case below, so both
+            // "spent past X" states read the same — only the leading icon
+            // (wallet vs. speedometer) tells you which one this is.
+            <View style={styles.overBadge}>
+              <Icon name="wallet-outline" size={11} color="#FF2D78" />
+              <Text style={styles.overBadgeText} numberOfLines={1}>
+                {`${t('card.over')} ${formatCurrency(Math.abs(remaining))}`}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.statRow}>
+              <Icon name="wallet-outline" size={11} color={theme.colors.textSecondary} />
+              <Text style={styles.remaining} numberOfLines={1}>
+                {formatCurrency(remaining)} {t('card.remaining')}
+              </Text>
+            </View>
+          )
         )}
 
-        {hasLimit ? (
-          <ProgressBar ratio={rawRatio} color={color} overLabel={t('card.over')} />
+        {isOverLimit ? (
+          <View style={styles.overBadge}>
+            <Icon name="speedometer" size={11} color="#FF2D78" />
+            <Text style={styles.overBadgeText} numberOfLines={1}>
+              {`${t('card.over')} ${formatCurrency(limit!)}`}
+            </Text>
+          </View>
+        ) : hasLimit ? (
+          <View style={styles.statRow}>
+            <Icon name="speedometer" size={11} color={theme.colors.textMuted} />
+            <View style={styles.statRowFill}>
+              <ProgressBar ratio={rawRatio} color={color} overLabel={t('card.over')} />
+            </View>
+          </View>
         ) : (
           <View style={[styles.accentLine, { backgroundColor: color }]} />
         )}
@@ -116,6 +148,16 @@ const styles = StyleSheet.create({
   remaining: {
     ...theme.typography.bodyMedium,
     fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  statRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  statRowFill: {
+    flex: 1,
+    minWidth: 0,
   },
   accentLine: {
     height: 2,
@@ -123,5 +165,22 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.full,
     marginTop: theme.spacing.xs,
     opacity: 0.7,
+  },
+  overBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 2,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: theme.radius.full,
+    backgroundColor: '#FF2D781A',
+    maxWidth: '100%',
+  },
+  overBadgeText: {
+    ...theme.typography.labelSmall,
+    color: '#FF2D78',
+    fontWeight: '700',
+    flexShrink: 1,
   },
 });

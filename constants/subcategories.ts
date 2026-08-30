@@ -1,5 +1,7 @@
 import type { Category } from '../store/useBudgetStore';
 import type { StringKey } from './i18n/en';
+import { en } from './i18n/en';
+import { fr } from './i18n/fr';
 import { t } from '../lib/i18n';
 
 export const SUBCATEGORIES: Record<Category, string[]> = {
@@ -31,4 +33,19 @@ const SUBCATEGORY_LABEL_KEY: Record<string, StringKey> = {
 export function subcategoryLabel(s: string): string {
   const key = SUBCATEGORY_LABEL_KEY[s];
   return key ? t(key) : s;
+}
+
+/** Either locale's translated label -> canonical string, case-insensitively.
+ *  Reverses subcategoryLabel() so a CSV exported with translated subcategory
+ *  cells re-imports to the same canonical form regardless of which language
+ *  it was exported in. Custom (never-translated) subcategories fall through
+ *  unchanged, same as subcategoryLabel() itself. */
+const CANONICAL_BY_LABEL: Record<string, string> = {};
+for (const [canonical, key] of Object.entries(SUBCATEGORY_LABEL_KEY)) {
+  CANONICAL_BY_LABEL[en[key].toLowerCase()] = canonical;
+  CANONICAL_BY_LABEL[fr[key].toLowerCase()] = canonical;
+}
+
+export function canonicalSubcategory(label: string): string {
+  return CANONICAL_BY_LABEL[label.trim().toLowerCase()] ?? label;
 }

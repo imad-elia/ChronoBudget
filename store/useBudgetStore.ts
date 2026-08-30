@@ -98,6 +98,12 @@ interface BudgetStore {
   learnedKeywords: LearnedKeywords;
   loadLearnedKeywords: () => Promise<void>;
 
+  // User-typed custom subcategories, remembered per category so they show up
+  // as a chip on later entries (persisted via app_settings as one JSON blob).
+  customSubcategories: Record<Category, string[]>;
+  loadCustomSubcategories: () => Promise<void>;
+  addCustomSubcategory: (category: Category, name: string) => Promise<void>;
+
   // Recurring rules (cached from SQLite for the manager modal)
   recurring: RecurringRule[];
   loadRecurring: () => Promise<void>;
@@ -126,7 +132,7 @@ interface BudgetStore {
   setLanguage: (lang: SupportedLanguage) => Promise<void>;
 }
 
-export const useBudgetStore = create<BudgetStore>((set) => ({
+export const useBudgetStore = create<BudgetStore>((set, get) => ({
   refreshCounter: 0,
   triggerRefresh: () => set((s) => ({ refreshCounter: s.refreshCounter + 1 })),
 
@@ -145,6 +151,33 @@ export const useBudgetStore = create<BudgetStore>((set) => ({
   loadLearnedKeywords: async () => {
     const map = await fetchLearnedKeywords();
     set({ learnedKeywords: map });
+  },
+
+  customSubcategories: { needs: [], wants: [], savings: [] },
+  loadCustomSubcategories: async () => {
+    const raw = await getSetting('customSubcategories');
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      set({
+        customSubcategories: {
+          needs: Array.isArray(parsed.needs) ? parsed.needs : [],
+          wants: Array.isArray(parsed.wants) ? parsed.wants : [],
+          savings: Array.isArray(parsed.savings) ? parsed.savings : [],
+        },
+      });
+    } catch {
+      // Ignore corrupt/legacy stored value — keep the empty default.
+    }
+  },
+  addCustomSubcategory: async (category, name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const current = get().customSubcategories;
+    if (current[category].includes(trimmed)) return;
+    const next = { ...current, [category]: [...current[category], trimmed] };
+    set({ customSubcategories: next });
+    await setSetting('customSubcategories', JSON.stringify(next));
   },
 
   recurring: [],

@@ -71,6 +71,23 @@ describe('parseCsv', () => {
   it('returns an empty result for an empty file', () => {
     expect(parseCsv('')).toEqual({ rows: [], skipped: 0 });
   });
+
+  it('round-trips a French-language export (translated header, category, and subcategory cells back to canonical form)', () => {
+    const frenchHeader = 'Date,Heure,Catégorie,Sous-catégorie,Note,Montant';
+    const csv = [
+      frenchHeader,
+      '2026-07-15,09:30,Besoins,"Courses","Courses hebdo",42.50',
+      '2026-07-16,18:05,Envies,"Restaurants","",12.00',
+      '2026-07-17,08:00,Épargne,"Fonds d\'urgence","",100.00',
+    ].join('\n');
+
+    const { rows, skipped } = parseCsv(csv);
+    expect(skipped).toBe(0);
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toMatchObject({ category: 'needs', subcategory: 'Groceries' });
+    expect(rows[1]).toMatchObject({ category: 'wants', subcategory: 'Dining' });
+    expect(rows[2]).toMatchObject({ category: 'savings', subcategory: 'Emergency Fund' });
+  });
 });
 
 // Real-world file shapes the round-trip importer has to survive. Exports leave

@@ -84,7 +84,8 @@ function TransactionRow({ item, onDelete, onEdit }: { item: Transaction; onDelet
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
   const formatted = formatCurrency(item.amount);
-  const date = new Date(item.timestamp).toLocaleDateString('en-US', {
+  const locale = useBudgetStore((s) => s.locale);
+  const date = new Date(item.timestamp).toLocaleDateString(locale, {
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 
@@ -456,6 +457,7 @@ export default function DashboardScreen() {
           useBudgetStore.getState().loadLocale(),
           useBudgetStore.getState().loadLearnedKeywords(),
           useBudgetStore.getState().loadRecurring(),
+          useBudgetStore.getState().loadCustomSubcategories(),
         ]);
         setDbReady(true);
         const done = await getSetting('onboarding_complete');

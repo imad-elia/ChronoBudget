@@ -1,7 +1,33 @@
 import { detectCategory } from './detectCategory';
 import type { Category } from '../store/useBudgetStore';
+import { en } from '../constants/i18n/en';
+import { fr } from '../constants/i18n/fr';
+import { canonicalSubcategory } from '../constants/subcategories';
 
-const HEADER = 'Date,Time,Category,Subcategory,Note,Amount';
+const HEADER_KEYS = [
+  'csv.header.date',
+  'csv.header.time',
+  'csv.header.category',
+  'csv.header.subcategory',
+  'csv.header.note',
+  'csv.header.amount',
+] as const;
+
+/** Both locales' header rows, so a French export re-imports without being
+ *  mistaken for a data row. */
+const HEADER_VARIANTS = new Set(
+  [en, fr].map((locale) => HEADER_KEYS.map((k) => locale[k]).join(',')),
+);
+
+/** Category label (either locale) → canonical Category id, so a French
+ *  export's "Besoins/Envies/Épargne" cell round-trips without falling
+ *  through to the classifier. */
+const CATEGORY_LABEL_TO_ID: Record<string, Category> = {};
+for (const locale of [en, fr]) {
+  CATEGORY_LABEL_TO_ID[locale['category.needs'].toLowerCase()] = 'needs';
+  CATEGORY_LABEL_TO_ID[locale['category.wants'].toLowerCase()] = 'wants';
+  CATEGORY_LABEL_TO_ID[locale['category.savings'].toLowerCase()] = 'savings';
+}
 
 export interface ParsedCsvRow {
   amount: number;
@@ -16,7 +42,6 @@ export interface ParseCsvResult {
   skipped: number;
 }
 
-const VALID_CATEGORIES: Category[] = ['needs', 'wants', 'savings'];
 
 /** Splits one CSV line into fields, honoring double-quoted fields with escaped `""`. */
 function splitCsvLine(line: string): string[] {
@@ -59,7 +84,7 @@ export function parseCsv(text: string): ParseCsvResult {
   if (lines.length === 0) return { rows: [], skipped: 0 };
 
   // Tolerate a missing/mismatched header — just skip a line that looks like one.
-  const startIndex = lines[0].trim() === HEADER ? 1 : 0;
+  const startIndex = HEADER_VARIANTS.has(lines[0].trim()) ? 1 : 0;
 
   const rows: ParsedCsvRow[] = [];
   let skipped = 0;
@@ -76,10 +101,10 @@ export function parseCsv(text: string): ParseCsvResult {
     if (isNaN(amount) || amount <= 0) { skipped++; continue; }
 
     let category: Category;
-    let resolvedSubcategory = subcategory;
+    let resolvedSubcategory = canonicalSubcategory(subcategory);
     const cell = categoryCell.trim().toLowerCase();
-    if ((VALID_CATEGORIES as string[]).includes(cell)) {
-      category = cell as Category;
+    if (CATEGORY_LABEL_TO_ID[cell]) {
+      category = CATEGORY_LABEL_TO_ID[cell];
     } else {
       const detection = detectCategory(note || subcategory);
       category = detection.category;

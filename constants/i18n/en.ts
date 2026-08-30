@@ -57,6 +57,15 @@ export const en = {
   'history.importSuccessSkipped': 'Imported {count} transactions, skipped {skipped}. Importing the same file again will add duplicates.',
   'history.importEmpty': 'No valid transactions found in that file.',
   'history.importError': 'Could not read that file.',
+  'history.exportDialogTitle': 'Export transactions',
+
+  // CSV export column headers
+  'csv.header.date': 'Date',
+  'csv.header.time': 'Time',
+  'csv.header.category': 'Category',
+  'csv.header.subcategory': 'Subcategory',
+  'csv.header.note': 'Note',
+  'csv.header.amount': 'Amount',
 
   // Trends
   'trends.title': 'TRENDS',
@@ -150,7 +159,7 @@ export const en = {
   'onboarding.countryHint': 'Highlighted country applies if you tap Continue.',
   'onboarding.continue': 'Continue',
   'onboarding.balanceTitle': 'Starting balances',
-  'onboarding.balanceSubtitle': 'Optionally set how much money you currently have per category. Leave blank to skip — you can set this later in Settings.',
+  'onboarding.balanceSubtitle': 'Optionally set how much money you currently have per category — separate from monthly spending limits, which you can set later. Leave blank to skip — you can set this later in Settings.',
   'onboarding.balanceSkip': 'Skip for now',
   'onboarding.tourWelcomeTitle': 'Welcome to ChronoBudget',
   'onboarding.tourWelcomeBody': 'Track your spending in seconds. Split your money into Needs, Wants, and Savings — and stay on top of your budget effortlessly.',
@@ -159,7 +168,7 @@ export const en = {
   'onboarding.tourDetailedTitle': 'Detailed Mode',
   'onboarding.tourDetailedBody': 'Switch to ☰ Detailed to add a subcategory (e.g. Groceries, Rent) and an optional note for more context.',
   'onboarding.tourLimitsTitle': 'Budget Limits',
-  'onboarding.tourLimitsBody': 'Tap the sliders icon at the top of the dashboard to set monthly spending limits. Each category card shows your progress.',
+  'onboarding.tourLimitsBody': 'Tap the sliders icon at the top of the dashboard to set monthly spending limits — separate from the starting balance you entered earlier. Each category card shows your progress.',
 
   // Starting balances (settings + dashboard)
   'settings.balances': 'Starting balances',

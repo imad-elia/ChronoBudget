@@ -180,6 +180,12 @@ export function ExpenseInput() {
         }
       }
 
+      // Remember a newly-typed custom subcategory so it shows up as a chip
+      // on the next entry instead of only living on this one transaction.
+      if (subcategory === '__custom__' && resolvedSub) {
+        await useBudgetStore.getState().addCustomSubcategory(category, resolvedSub);
+      }
+
       triggerRefresh();
       resetFields();
     } catch {
@@ -189,7 +195,8 @@ export function ExpenseInput() {
     }
   }
 
-  const subcats = SUBCATEGORIES[category];
+  const customSubcategoriesForCategory = useBudgetStore((s) => s.customSubcategories[category]);
+  const subcats = [...SUBCATEGORIES[category], ...customSubcategoriesForCategory];
   const hasEntry = mode === 'fast' ? raw.trim().length > 0 : note.trim().length > 0;
   const subDisplay =
     subcategory === '__custom__'
@@ -217,12 +224,7 @@ export function ExpenseInput() {
   );
 
   const renderSubcategoryChips = () => (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.subRow}
-      keyboardShouldPersistTaps="handled"
-    >
+    <View style={styles.subRowWrap}>
       {subcats.map((s) => {
         const active = subcategory === s;
         return (
@@ -244,7 +246,7 @@ export function ExpenseInput() {
         <Icon name="plus" size={11} color={subcategory === '__custom__' ? activeColor : theme.colors.textMuted} />
         <Text style={[styles.subLabel, { color: subcategory === '__custom__' ? activeColor : theme.colors.textMuted }]}>{t('input.custom')}</Text>
       </TouchableOpacity>
-    </ScrollView>
+    </View>
   );
 
   // Optional account tag. Hidden entirely when no accounts exist yet, so
@@ -633,6 +635,15 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   subRow: {
+    gap: theme.spacing.sm,
+    paddingVertical: 2,
+  },
+  // Subcategory chips wrap instead of scrolling horizontally, so a growing
+  // list of custom subcategories (and the "+ Custom" chip) is always fully
+  // visible with no scroll affordance needed.
+  subRowWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: theme.spacing.sm,
     paddingVertical: 2,
   },

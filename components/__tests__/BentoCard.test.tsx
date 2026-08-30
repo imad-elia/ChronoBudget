@@ -36,20 +36,28 @@ describe('BentoCard', () => {
     expect(screen.getByText(/\$58\.00/)).toBeTruthy();
   });
 
-  it('shows a negative (over-balance) remaining line when spend exceeds the balance', async () => {
+  it('shows an "OVER $amount" badge (same style as the limit badge) when spend exceeds the balance', async () => {
     await render(<BentoCard {...baseProps} amount={120} balance={100} />);
-    expect(screen.getByText(/-\$20\.00/)).toBeTruthy();
+    expect(screen.getByText('OVER $20.00')).toBeTruthy();
+    expect(screen.queryByText(/-\$20\.00/)).toBeNull();
+    expect(screen.queryByText(/left/)).toBeNull();
   });
 
-  it('shows an OVER badge and percentage past 100% of the limit', async () => {
+  it('shows a compact "OVER $limit" badge, not a percentage, past 100% of the limit', async () => {
     await render(<BentoCard {...baseProps} amount={68} limit={50} />);
-    expect(screen.getByText('OVER')).toBeTruthy();
-    expect(screen.getByText('136%')).toBeTruthy();
+    expect(screen.getByText('OVER $50.00')).toBeTruthy();
+    expect(screen.queryByText('136%')).toBeNull();
+  });
+
+  it('shows both an over-balance badge and an over-limit badge distinctly when both are exceeded', async () => {
+    await render(<BentoCard {...baseProps} amount={120} balance={100} limit={50} />);
+    expect(screen.getByText('OVER $20.00')).toBeTruthy();
+    expect(screen.getByText('OVER $50.00')).toBeTruthy();
   });
 
   it('does not show an OVER badge under the limit', async () => {
     await render(<BentoCard {...baseProps} amount={30} limit={50} />);
-    expect(screen.queryByText('OVER')).toBeNull();
+    expect(screen.queryByText(/OVER/)).toBeNull();
     expect(screen.getByText('60%')).toBeTruthy();
   });
 });

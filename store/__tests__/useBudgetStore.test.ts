@@ -66,6 +66,54 @@ describe('loadLearnedKeywords', () => {
   });
 });
 
+describe('customSubcategories', () => {
+  it('loadCustomSubcategories loads the persisted JSON blob into state', async () => {
+    (db.getSetting as jest.Mock).mockResolvedValue(
+      JSON.stringify({ needs: ['Pet care'], wants: [], savings: [] }),
+    );
+
+    await useBudgetStore.getState().loadCustomSubcategories();
+
+    expect(useBudgetStore.getState().customSubcategories).toEqual({
+      needs: ['Pet care'],
+      wants: [],
+      savings: [],
+    });
+  });
+
+  it('loadCustomSubcategories leaves the default when nothing is persisted yet', async () => {
+    (db.getSetting as jest.Mock).mockResolvedValue(null);
+
+    await useBudgetStore.getState().loadCustomSubcategories();
+
+    expect(useBudgetStore.getState().customSubcategories).toEqual({ needs: [], wants: [], savings: [] });
+  });
+
+  it('addCustomSubcategory appends and persists, so it is available for the next entry', async () => {
+    await useBudgetStore.getState().addCustomSubcategory('needs', 'Vet bills');
+
+    expect(useBudgetStore.getState().customSubcategories.needs).toEqual(['Vet bills']);
+    expect(db.setSetting).toHaveBeenCalledWith(
+      'customSubcategories',
+      JSON.stringify({ needs: ['Vet bills'], wants: [], savings: [] }),
+    );
+  });
+
+  it('addCustomSubcategory does not add a duplicate for the same category', async () => {
+    await useBudgetStore.getState().addCustomSubcategory('wants', 'Gym extras');
+    await useBudgetStore.getState().addCustomSubcategory('wants', 'Gym extras');
+
+    expect(useBudgetStore.getState().customSubcategories.wants).toEqual(['Gym extras']);
+  });
+
+  it('addCustomSubcategory ignores a blank/whitespace-only name', async () => {
+    await useBudgetStore.getState().addCustomSubcategory('savings', '   ');
+
+    expect(useBudgetStore.getState().customSubcategories.savings).toEqual([]);
+    expect(db.setSetting).not.toHaveBeenCalled();
+  });
+});
+
 describe('loadRecurring', () => {
   it('loads recurring rules from the db layer into state', async () => {
     const rules = [

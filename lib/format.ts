@@ -26,11 +26,11 @@ export function formatCurrency(amount: number): string {
   }
 }
 
-/** Compact currency for tight spaces (e.g. "$1.2k"). */
+/** Compact currency for tight spaces (e.g. "$1.2K", "$1,001.2K"). */
 export function formatCompactCurrency(amount: number): string {
   const { symbol, currencyDecimals } = useBudgetStore.getState();
   if (Math.abs(amount) >= 1000) {
-    return `${symbol}${(amount / 1000).toFixed(1)}k`;
+    return `${symbol}${grouped(amount / 1000, 1)}K`;
   }
   return `${symbol}${grouped(amount, currencyDecimals)}`;
 }

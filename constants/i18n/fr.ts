@@ -57,6 +57,15 @@ export const fr: Record<StringKey, string> = {
   'history.importSuccessSkipped': '{count} transactions importées, {skipped} ignorées. Réimporter le même fichier ajoutera des doublons.',
   'history.importEmpty': 'Aucune transaction valide trouvée dans ce fichier.',
   'history.importError': 'Impossible de lire ce fichier.',
+  'history.exportDialogTitle': 'Exporter les transactions',
+
+  // CSV export column headers
+  'csv.header.date': 'Date',
+  'csv.header.time': 'Heure',
+  'csv.header.category': 'Catégorie',
+  'csv.header.subcategory': 'Sous-catégorie',
+  'csv.header.note': 'Note',
+  'csv.header.amount': 'Montant',
 
   // Trends
   'trends.title': 'TENDANCES',
@@ -150,7 +159,7 @@ export const fr: Record<StringKey, string> = {
   'onboarding.countryHint': 'Le pays en surbrillance s’appliquera si vous appuyez sur Continuer.',
   'onboarding.continue': 'Continuer',
   'onboarding.balanceTitle': 'Soldes de départ',
-  'onboarding.balanceSubtitle': 'Indiquez éventuellement combien d’argent vous avez actuellement par catégorie. Laissez vide pour passer — vous pourrez le faire plus tard dans les paramètres.',
+  'onboarding.balanceSubtitle': 'Indiquez éventuellement combien d’argent vous avez actuellement par catégorie — distinct des limites de dépenses mensuelles, que vous pourrez définir plus tard. Laissez vide pour passer — vous pourrez le faire plus tard dans les paramètres.',
   'onboarding.balanceSkip': 'Passer pour l’instant',
   'onboarding.tourWelcomeTitle': 'Bienvenue sur ChronoBudget',
   'onboarding.tourWelcomeBody': 'Suivez vos dépenses en quelques secondes. Répartissez votre argent en Besoins, Envies et Épargne — et gardez le contrôle de votre budget sans effort.',
@@ -159,7 +168,7 @@ export const fr: Record<StringKey, string> = {
   'onboarding.tourDetailedTitle': 'Mode Détaillé',
   'onboarding.tourDetailedBody': 'Passez en mode ☰ Détaillé pour ajouter une sous-catégorie (ex. Courses, Loyer) et une note facultative pour plus de contexte.',
   'onboarding.tourLimitsTitle': 'Limites budgétaires',
-  'onboarding.tourLimitsBody': 'Appuyez sur l’icône des curseurs en haut du tableau de bord pour définir des limites de dépenses mensuelles. Chaque carte affiche votre progression.',
+  'onboarding.tourLimitsBody': 'Appuyez sur l’icône des curseurs en haut du tableau de bord pour définir des limites de dépenses mensuelles — distinctes du solde de départ saisi précédemment. Chaque carte affiche votre progression.',
 
   // Starting balances (settings + dashboard)
   'settings.balances': 'Soldes de départ',
