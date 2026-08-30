@@ -53,8 +53,8 @@ export const fr: Record<StringKey, string> = {
   'history.emptyHintFiltered': 'Aucune transaction {category}.',
   'history.export': 'Exporter',
   'history.import': 'Importer',
-  'history.importSuccess': '{count} transactions importées.',
-  'history.importSuccessSkipped': '{count} transactions importées, {skipped} ignorées.',
+  'history.importSuccess': '{count} transactions importées. Réimporter le même fichier ajoutera des doublons.',
+  'history.importSuccessSkipped': '{count} transactions importées, {skipped} ignorées. Réimporter le même fichier ajoutera des doublons.',
   'history.importEmpty': 'Aucune transaction valide trouvée dans ce fichier.',
   'history.importError': 'Impossible de lire ce fichier.',
 
@@ -178,4 +178,9 @@ export const fr: Record<StringKey, string> = {
   'keywords.cancel': 'Annuler',
   'keywords.errWord': 'Saisissez un mot.',
   'keywords.errSubcategory': 'Choisissez une sous-catégorie.',
+
+  // Not-found (bad deep link)
+  'notFound.title': 'Oups !',
+  'notFound.message': "Cet écran n'existe pas.",
+  'notFound.goHome': "Retour à l'accueil !",
 };

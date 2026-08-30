@@ -16,19 +16,7 @@
 import * as ts from 'typescript';
 import { collectSourceFiles, report, type Violation } from './lib/scan.ts';
 
-/**
- * Expo template scaffolding that predates the app's i18n layer. Two of these
- * three are unreachable leftovers; +not-found.tsx is reachable but only via a
- * bad deep link. Allowlisted so the check can hard-fail on new violations in
- * product code today, rather than warning about known ones forever. Tracked as
- * a follow-up in vault/Issues/open-issues.md — delete entries as they are
- * translated or the files removed.
- */
-const ALLOWLIST = new Set([
-  'app/+not-found.tsx',
-  'app/modal.tsx',
-  'components/EditScreenInfo.tsx',
-]);
+const ALLOWLIST = new Set<string>([]);
 
 /** Locale-independent glyphs: punctuation, digits, currency, arrows, ellipses. */
 const LOCALE_NEUTRAL = /^[\s\d\p{P}\p{S}]*$/u;

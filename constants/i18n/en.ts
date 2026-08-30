@@ -53,8 +53,8 @@ export const en = {
   'history.emptyHintFiltered': 'No {category} transactions yet.',
   'history.export': 'Export',
   'history.import': 'Import',
-  'history.importSuccess': 'Imported {count} transactions.',
-  'history.importSuccessSkipped': 'Imported {count} transactions, skipped {skipped}.',
+  'history.importSuccess': 'Imported {count} transactions. Importing the same file again will add duplicates.',
+  'history.importSuccessSkipped': 'Imported {count} transactions, skipped {skipped}. Importing the same file again will add duplicates.',
   'history.importEmpty': 'No valid transactions found in that file.',
   'history.importError': 'Could not read that file.',
 
@@ -178,6 +178,11 @@ export const en = {
   'keywords.cancel': 'Cancel',
   'keywords.errWord': 'Enter a word.',
   'keywords.errSubcategory': 'Choose a subcategory.',
+
+  // Not-found (bad deep link)
+  'notFound.title': 'Oops!',
+  'notFound.message': "This screen doesn't exist.",
+  'notFound.goHome': 'Go to home screen!',
 } as const;
 
 export type StringKey = keyof typeof en;
