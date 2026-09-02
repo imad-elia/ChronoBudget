@@ -142,6 +142,40 @@ describe('detectCategory — fuzzy/stemming fallback', () => {
   });
 });
 
+describe('detectCategory — 2026-09-02 dictionary expansion spot checks', () => {
+  it('matches a newly added regional grocery chain (needs · Groceries)', () => {
+    expect(detectCategory('wegmans')).toEqual({
+      category: 'needs',
+      subcategory: 'Groceries',
+      matched: true,
+    });
+  });
+
+  it('matches a newly added brokerage (savings · Investment)', () => {
+    expect(detectCategory('vanguard')).toEqual({
+      category: 'savings',
+      subcategory: 'Investment',
+      matched: true,
+    });
+  });
+
+  it('matches a newly added goal-savings phrase (savings · Goal)', () => {
+    expect(detectCategory('honeymoon')).toEqual({
+      category: 'savings',
+      subcategory: 'Goal',
+      matched: true,
+    });
+  });
+
+  it('does not let a new Dining brand collide with the pre-existing "subway" Transport keyword', () => {
+    expect(detectCategory('subway')).toEqual({
+      category: 'needs',
+      subcategory: 'Transport',
+      matched: true,
+    });
+  });
+});
+
 describe('detectCategory — French dictionary', () => {
   beforeEach(() => setActiveLocale('fr-FR'));
   afterEach(() => setActiveLocale('en-US'));
@@ -180,6 +214,30 @@ describe('detectCategory — French dictionary', () => {
 
   it('resolves a simple French -s plural via stemming ("epiceries" → "epicerie")', () => {
     expect(detectCategory('epiceries')).toEqual({
+      category: 'needs',
+      subcategory: 'Groceries',
+      matched: true,
+    });
+  });
+
+  it('matches a newly added French bank/brokerage (savings · Investment)', () => {
+    expect(detectCategory('boursorama')).toEqual({
+      category: 'savings',
+      subcategory: 'Investment',
+      matched: true,
+    });
+  });
+
+  it('matches "bourse" (stock exchange) distinctly from a homonym risk with scholarships', () => {
+    expect(detectCategory('bourse')).toEqual({
+      category: 'savings',
+      subcategory: 'Investment',
+      matched: true,
+    });
+  });
+
+  it('matches a newly added everyday French grocery item (needs · Groceries)', () => {
+    expect(detectCategory('fromager')).toEqual({
       category: 'needs',
       subcategory: 'Groceries',
       matched: true,

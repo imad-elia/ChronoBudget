@@ -167,6 +167,55 @@ submitting first to "unstick" a stale override. Added a regression test
 (`components/__tests__/ExpenseInput.test.tsx`) covering exactly this
 override → clear → retype → re-detect sequence.
 
+## Dictionary expansion (2026-09-02)
+
+User asked to substantially grow the seed dictionaries for broader real-world
+coverage. Scoped via `AskUserQuestion`: a ~2-3x expansion, staying within the
+existing regional footprint (US/UK/Canada/Western Europe for `en.ts`,
+mainland France for `fr.ts` — no new countries/languages).
+
+`constants/keywords/en.ts` grew from ~350 to **690** entries; `constants/
+keywords/fr.ts` grew from ~265 to **514** entries — both counted
+programmatically (a small Node script scanning for `key: { category:` lines),
+not by hand, since a file this size is easy to miscount. Growth was weighted
+toward the thinnest subcategories first — the four Savings subcategories
+(Emergency Fund, Investment, Retirement, Goal) had only 4/11/5/3 EN entries
+and 5/9/3/3 FR entries before this pass, the weakest coverage in the whole
+dictionary — followed by a smaller top-up to the already-larger Needs/Wants
+subcategories (more regional grocery/retail chains, brokerages/banks,
+streaming/software services, airlines/hotel chains, and everyday nouns, not
+just brand names).
+
+**Collision safety was the one real risk** in a content-only change of this
+size, because of the existing fuzzy/Levenshtein fallback (see "Future work"
+above) and because both files are a single flat `Record<string, ...>` where a
+duplicate key silently overwrites the earlier one with no compiler error.
+Handled two ways:
+1. Manual care while drafting — e.g. `subway` (needs · Transport, a
+   pre-existing entry) was deliberately *not* also added as a Subway-the-
+   sandwich-chain Dining keyword, since that would silently overwrite it.
+   French has a sharper version of this risk than English: `bourse` (already
+   pension/investment-adjacent — "the stock exchange") and `portefeuille`
+   ("wallet" *and* "investment portfolio") are genuine homonyms in French:
+   each kept a single, deliberate placement (`bourse` → Investment,
+   `portefeuille` → Shopping/wallet) rather than being added to both
+   plausible subcategories.
+2. **Automated verification after drafting** — a Node one-liner (`Bash`, not
+   committed as a script) regex-scanned both files for duplicate keys (found
+   none) and checked that no new key collided with the fixed test fixtures in
+   `lib/__tests__/detectCategory.test.ts` (`grocry`, `xyzzy`, `xyzzyplugh`,
+   `ab`, `gymbox` — none matched). Given ~1200 new entries across both files,
+   this check mattered more than the manual care — hand-tracking global
+   uniqueness across a file that size reliably misses something.
+
+Added a small number of new spot-check assertions to `lib/__tests__/
+detectCategory.test.ts` (one new EN grocery chain, one new EN brokerage, one
+new EN goal-savings phrase, the `subway` non-collision case, and three
+parallel French cases including the `bourse` homonym) — matching the file's
+existing style of representative spot checks rather than exhaustive
+per-keyword coverage. `tsc --noEmit`, `npm run check`, `npm test` all clean,
+**249/249** passing.
+
 ## Related notes
 
 - [[web-inmemory-db]] — why web loses learned data on reload
