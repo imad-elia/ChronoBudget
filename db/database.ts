@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
-import type { Category, Transaction, CategoryTotals, CategoryLimits, MonthlyTotal, RecurringRule, Frequency, Account, Transfer, Goal, TransactionKind } from '../store/useBudgetStore';
+import type { Category, Transaction, CategoryTotals, CategoryLimits, MonthlyTotal, QuarterlyTotal, YearlyTotal, RecurringRule, Frequency, Account, Transfer, Goal, TransactionKind } from '../store/useBudgetStore';
 import { advance } from '../lib/recurrence';
 
 // Native uses a persistent on-disk SQLite file. Web uses an in-memory database:
@@ -784,34 +784,52 @@ export async function processRecurring(): Promise<number> {
 
 // ─── Monthly totals (for Trends screen) ──────────────────────────────────────
 
-export async function fetchMonthlyTotals(range: number | 'all' = 6): Promise<MonthlyTotal[]> {
+export type MonthlyRange = number | 'all' | { startMonth: string; endMonth: string };
+
+export async function fetchMonthlyTotals(range: MonthlyRange = 6): Promise<MonthlyTotal[]> {
   const database = await getDb();
   const now = new Date();
 
-  let months: number;
-  if (range === 'all') {
-    // Anchor "all" to the earliest transaction's local month instead of a
-    // fixed lookback, same local-time convention as `now` below (plain Date
-    // accessors, no UTC) so it lines up with the 'localtime' bucketing in the
-    // query further down.
-    const [{ minTs }] = await database.getAllAsync<{ minTs: number | null }>(
-      'SELECT MIN(timestamp) AS minTs FROM transactions',
-    );
-    if (minTs == null) return [];
-    const earliest = new Date(minTs);
-    months =
-      (now.getFullYear() - earliest.getFullYear()) * 12 +
-      (now.getMonth() - earliest.getMonth()) +
-      1;
+  let monthKeys: string[];
+  if (typeof range === 'object') {
+    // Drill-down: an explicit inclusive month window (e.g. one past year's 12
+    // months, or one quarter's 3 months) — not anchored to "now" at all, so
+    // this branch doesn't touch the months-back logic below.
+    monthKeys = [];
+    const [startYear, startMonth] = range.startMonth.split('-').map(Number);
+    const [endYear, endMonth] = range.endMonth.split('-').map(Number);
+    let d = new Date(startYear, startMonth - 1, 1);
+    const end = new Date(endYear, endMonth - 1, 1);
+    while (d <= end) {
+      monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+      d = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    }
   } else {
-    months = range;
-  }
+    let months: number;
+    if (range === 'all') {
+      // Anchor "all" to the earliest transaction's local month instead of a
+      // fixed lookback, same local-time convention as `now` below (plain Date
+      // accessors, no UTC) so it lines up with the 'localtime' bucketing in
+      // the query further down.
+      const [{ minTs }] = await database.getAllAsync<{ minTs: number | null }>(
+        'SELECT MIN(timestamp) AS minTs FROM transactions',
+      );
+      if (minTs == null) return [];
+      const earliest = new Date(minTs);
+      months =
+        (now.getFullYear() - earliest.getFullYear()) * 12 +
+        (now.getMonth() - earliest.getMonth()) +
+        1;
+    } else {
+      months = range;
+    }
 
-  // Build a list of the last N months as 'YYYY-MM' strings
-  const monthKeys: string[] = [];
-  for (let i = months - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    // Build a list of the last N months as 'YYYY-MM' strings
+    monthKeys = [];
+    for (let i = months - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
   }
 
   // 'localtime' matters: monthKeys above are built from local-time Date parts,
@@ -824,10 +842,11 @@ export async function fetchMonthlyTotals(range: number | 'all' = 6): Promise<Mon
        category,
        SUM(CASE WHEN kind = 'withdrawal' THEN -amount ELSE amount END) AS total
      FROM transactions
-     WHERE strftime('%Y-%m', datetime(timestamp / 1000, 'unixepoch', 'localtime')) >= ?
+     WHERE strftime('%Y-%m', datetime(timestamp / 1000, 'unixepoch', 'localtime')) BETWEEN ? AND ?
      GROUP BY month, category
      ORDER BY month ASC`,
     monthKeys[0],
+    monthKeys[monthKeys.length - 1],
   );
 
   // Merge into one object per month, filling zeros for missing categories
@@ -837,6 +856,94 @@ export async function fetchMonthlyTotals(range: number | 'all' = 6): Promise<Mon
   }
   for (const row of rows) {
     const entry = map.get(row.month);
+    if (entry) entry[row.category] = row.total;
+  }
+
+  return Array.from(map.values());
+}
+
+export async function fetchQuarterlyTotals(quarters = 12): Promise<QuarterlyTotal[]> {
+  const database = await getDb();
+  const now = new Date();
+  const curQuarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
+
+  // Build a list of the last N quarters as 'YYYY-Qn' strings. Same-width
+  // year + single-digit quarter means these sort/compare correctly as plain
+  // strings, so BETWEEN below works exactly like it does for monthKeys.
+  const quarterKeys: string[] = [];
+  for (let i = quarters - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), curQuarterStartMonth - i * 3, 1);
+    quarterKeys.push(`${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}`);
+  }
+
+  const rows = await database.getAllAsync<{ quarter: string; category: Category; total: number }>(
+    `SELECT
+       strftime('%Y', datetime(timestamp / 1000, 'unixepoch', 'localtime')) || '-Q' ||
+         ((CAST(strftime('%m', datetime(timestamp / 1000, 'unixepoch', 'localtime')) AS INTEGER) - 1) / 3 + 1) AS quarter,
+       category,
+       SUM(CASE WHEN kind = 'withdrawal' THEN -amount ELSE amount END) AS total
+     FROM transactions
+     WHERE strftime('%Y', datetime(timestamp / 1000, 'unixepoch', 'localtime')) || '-Q' ||
+         ((CAST(strftime('%m', datetime(timestamp / 1000, 'unixepoch', 'localtime')) AS INTEGER) - 1) / 3 + 1)
+       BETWEEN ? AND ?
+     GROUP BY quarter, category
+     ORDER BY quarter ASC`,
+    quarterKeys[0],
+    quarterKeys[quarterKeys.length - 1],
+  );
+
+  const map = new Map<string, QuarterlyTotal>();
+  for (const key of quarterKeys) {
+    map.set(key, { quarter: key, needs: 0, wants: 0, savings: 0 });
+  }
+  for (const row of rows) {
+    const entry = map.get(row.quarter);
+    if (entry) entry[row.category] = row.total;
+  }
+
+  return Array.from(map.values());
+}
+
+export async function fetchYearlyTotals(range: number | 'all' = 5): Promise<YearlyTotal[]> {
+  const database = await getDb();
+  const now = new Date();
+
+  let years: number;
+  if (range === 'all') {
+    const [{ minTs }] = await database.getAllAsync<{ minTs: number | null }>(
+      'SELECT MIN(timestamp) AS minTs FROM transactions',
+    );
+    if (minTs == null) return [];
+    const earliest = new Date(minTs);
+    years = now.getFullYear() - earliest.getFullYear() + 1;
+  } else {
+    years = range;
+  }
+
+  const yearKeys: string[] = [];
+  for (let i = years - 1; i >= 0; i--) {
+    yearKeys.push(String(now.getFullYear() - i));
+  }
+
+  const rows = await database.getAllAsync<{ year: string; category: Category; total: number }>(
+    `SELECT
+       strftime('%Y', datetime(timestamp / 1000, 'unixepoch', 'localtime')) AS year,
+       category,
+       SUM(CASE WHEN kind = 'withdrawal' THEN -amount ELSE amount END) AS total
+     FROM transactions
+     WHERE strftime('%Y', datetime(timestamp / 1000, 'unixepoch', 'localtime')) BETWEEN ? AND ?
+     GROUP BY year, category
+     ORDER BY year ASC`,
+    yearKeys[0],
+    yearKeys[yearKeys.length - 1],
+  );
+
+  const map = new Map<string, YearlyTotal>();
+  for (const key of yearKeys) {
+    map.set(key, { year: key, needs: 0, wants: 0, savings: 0 });
+  }
+  for (const row of rows) {
+    const entry = map.get(row.year);
     if (entry) entry[row.category] = row.total;
   }
 

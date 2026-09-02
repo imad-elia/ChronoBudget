@@ -10,11 +10,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 
-import { fetchMonthlyTotals, getSetting, setSetting } from '../../db/database';
-import { useBudgetStore, type MonthlyTotal } from '../../store/useBudgetStore';
+import { fetchMonthlyTotals, fetchQuarterlyTotals, fetchYearlyTotals, getSetting, setSetting } from '../../db/database';
+import { useBudgetStore, type MonthlyTotal, type QuarterlyTotal, type YearlyTotal } from '../../store/useBudgetStore';
 import { theme } from '../../theme';
 import { formatCompactCurrency } from '../../lib/format';
-import { t } from '../../lib/i18n';
+import { t, getActiveLocale } from '../../lib/i18n';
 import type { StringKey } from '../../constants/i18n/en';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -26,22 +26,59 @@ const CATEGORIES = [
 ];
 
 type RangeId = '1m' | '3m' | '6m' | '1y' | '3y' | '5y' | 'all';
+type Granularity = 'month' | 'quarter' | 'year';
 
-const RANGE_OPTIONS: { id: RangeId; months: number | 'all'; chipLabelKey: StringKey; subtitleKey: StringKey }[] = [
-  { id: '1m',  months: 1,     chipLabelKey: 'trends.range1m', subtitleKey: 'trends.subtitle1m' },
-  { id: '3m',  months: 3,     chipLabelKey: 'trends.range3m', subtitleKey: 'trends.subtitle3m' },
-  { id: '6m',  months: 6,     chipLabelKey: 'trends.range6m', subtitleKey: 'trends.subtitle6m' },
-  { id: '1y',  months: 12,    chipLabelKey: 'trends.range1y', subtitleKey: 'trends.subtitle1y' },
-  { id: '3y',  months: 36,    chipLabelKey: 'trends.range3y', subtitleKey: 'trends.subtitle3y' },
-  { id: '5y',  months: 60,    chipLabelKey: 'trends.range5y', subtitleKey: 'trends.subtitle5y' },
-  { id: 'all', months: 'all', chipLabelKey: 'trends.rangeAll', subtitleKey: 'trends.subtitleAll' },
+const RANGE_OPTIONS: { id: RangeId; granularity: Granularity; count: number | 'all'; chipLabelKey: StringKey; subtitleKey: StringKey }[] = [
+  { id: '1m',  granularity: 'month',   count: 1,     chipLabelKey: 'trends.range1m', subtitleKey: 'trends.subtitle1m' },
+  { id: '3m',  granularity: 'month',   count: 3,     chipLabelKey: 'trends.range3m', subtitleKey: 'trends.subtitle3m' },
+  { id: '6m',  granularity: 'month',   count: 6,     chipLabelKey: 'trends.range6m', subtitleKey: 'trends.subtitle6m' },
+  { id: '1y',  granularity: 'month',   count: 12,    chipLabelKey: 'trends.range1y', subtitleKey: 'trends.subtitle1y' },
+  { id: '3y',  granularity: 'quarter', count: 12,    chipLabelKey: 'trends.range3y', subtitleKey: 'trends.subtitle3y' },
+  { id: '5y',  granularity: 'year',    count: 5,     chipLabelKey: 'trends.range5y', subtitleKey: 'trends.subtitle5y' },
+  { id: 'all', granularity: 'year',    count: 'all', chipLabelKey: 'trends.rangeAll', subtitleKey: 'trends.subtitleAll' },
 ];
 const DEFAULT_RANGE: RangeId = '6m';
+
+// One level of tap-to-drill from a year/quarter bar down into its months —
+// see the trends-adaptive-granularity decision note. Not persisted: unlike
+// `range`, this is a transient exploration state.
+type Drill = { level: 'year'; year: number } | { level: 'quarter'; year: number; quarter: number };
+
+function quarterPrefix(): string {
+  // French convention is "trimestre" (T1-T4), not the English "Q1-Q4".
+  return getActiveLocale() === 'fr' ? 'T' : 'Q';
+}
 
 function shortMonth(yearMonth: string): string {
   const [year, month] = yearMonth.split('-');
   const d = new Date(Number(year), Number(month) - 1, 1);
   return d.toLocaleString('en-US', { month: 'short' });
+}
+
+// ─── Normalized chart data ─────────────────────────────────────────────────────
+// The chart draws from this shape regardless of granularity — only label
+// formatting differs per granularity; the bar-drawing/scaling/scroll logic
+// below is entirely granularity-agnostic.
+
+interface ChartBar {
+  key: string;
+  label: string;
+  needs: number;
+  wants: number;
+  savings: number;
+}
+
+function monthToBar(m: MonthlyTotal): ChartBar {
+  return { key: m.month, label: shortMonth(m.month), needs: m.needs, wants: m.wants, savings: m.savings };
+}
+
+function quarterToBar(q: QuarterlyTotal): ChartBar {
+  const [year, qNum] = q.quarter.split('-Q');
+  return { key: q.quarter, label: `${quarterPrefix()}${qNum} '${year.slice(2)}`, needs: q.needs, wants: q.wants, savings: q.savings };
+}
+
+function yearToBar(y: YearlyTotal): ChartBar {
+  return { key: y.year, label: y.year, needs: y.needs, wants: y.wants, savings: y.savings };
 }
 
 // ─── Bar chart ────────────────────────────────────────────────────────────────
@@ -50,11 +87,12 @@ const BAR_HEIGHT = 180;
 const BAR_WIDTH = 14;
 const BAR_GAP = 4;
 
-function MonthlyChart({ data }: { data: MonthlyTotal[] }) {
+function TrendsChart({ data, onBarPress }: { data: ChartBar[]; onBarPress?: (key: string) => void }) {
   const maxVal = Math.max(
     ...data.flatMap((m) => [m.needs, m.wants, m.savings]),
     1,
   );
+  const BarWrapper = onBarPress ? TouchableOpacity : View;
 
   return (
     <View style={chartStyles.container}>
@@ -77,13 +115,18 @@ function MonthlyChart({ data }: { data: MonthlyTotal[] }) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={chartStyles.barsRow}
       >
-        {data.map((month) => {
-          const needsH  = (month.needs   / maxVal) * BAR_HEIGHT;
-          const wantsH  = (month.wants   / maxVal) * BAR_HEIGHT;
-          const savingsH = (month.savings / maxVal) * BAR_HEIGHT;
+        {data.map((bar) => {
+          const needsH  = (bar.needs   / maxVal) * BAR_HEIGHT;
+          const wantsH  = (bar.wants   / maxVal) * BAR_HEIGHT;
+          const savingsH = (bar.savings / maxVal) * BAR_HEIGHT;
 
           return (
-            <View key={month.month} style={chartStyles.monthGroup}>
+            <BarWrapper
+              key={bar.key}
+              style={chartStyles.monthGroup}
+              onPress={onBarPress ? () => onBarPress(bar.key) : undefined}
+              activeOpacity={onBarPress ? 0.7 : undefined}
+            >
               <View style={chartStyles.barGroup}>
                 {/* Needs bar */}
                 <View style={chartStyles.barTrack}>
@@ -106,9 +149,9 @@ function MonthlyChart({ data }: { data: MonthlyTotal[] }) {
               </View>
               {/* Baseline */}
               <View style={chartStyles.baseline} />
-              {/* Month label */}
-              <Text style={chartStyles.monthLabel}>{shortMonth(month.month)}</Text>
-            </View>
+              {/* Bar label (month/quarter/year, depending on granularity) */}
+              <Text style={chartStyles.monthLabel}>{bar.label}</Text>
+            </BarWrapper>
           );
         })}
       </ScrollView>
@@ -188,7 +231,7 @@ const chartStyles = StyleSheet.create({
 
 // ─── Summary chips ─────────────────────────────────────────────────────────────
 
-function SummaryChips({ data }: { data: MonthlyTotal[] }) {
+function SummaryChips({ data }: { data: ChartBar[] }) {
   const totals = data.reduce(
     (acc, m) => ({
       needs:   acc.needs   + m.needs,
@@ -264,9 +307,10 @@ const legendStyles = StyleSheet.create({
 // ─── Trends screen ────────────────────────────────────────────────────────────
 
 export default function TrendsScreen() {
-  const [data, setData] = useState<MonthlyTotal[]>([]);
+  const [data, setData] = useState<ChartBar[]>([]);
   const [dbReady, setDbReady] = useState(false);
   const [range, setRange] = useState<RangeId>(DEFAULT_RANGE);
+  const [drill, setDrill] = useState<Drill | null>(null);
 
   const refreshCounter = useBudgetStore((s) => s.refreshCounter);
   const insets = useSafeAreaInsets();
@@ -282,19 +326,53 @@ export default function TrendsScreen() {
     });
   }, []);
 
+  const activeRange = RANGE_OPTIONS.find((r) => r.id === range)!;
+  // Drilling in always shows months — a single year or quarter never repeats
+  // a month name, so no further ambiguity to solve at this level.
+  const granularity: Granularity = drill ? 'month' : activeRange.granularity;
+
   useEffect(() => {
     if (!dbReady) return;
-    const months = RANGE_OPTIONS.find((r) => r.id === range)!.months;
-    fetchMonthlyTotals(months).then(setData);
-  }, [refreshCounter, dbReady, range]);
+    if (drill) {
+      const startMonth = drill.level === 'year'
+        ? `${drill.year}-01`
+        : `${drill.year}-${String((drill.quarter - 1) * 3 + 1).padStart(2, '0')}`;
+      const endMonth = drill.level === 'year'
+        ? `${drill.year}-12`
+        : `${drill.year}-${String((drill.quarter - 1) * 3 + 3).padStart(2, '0')}`;
+      fetchMonthlyTotals({ startMonth, endMonth }).then((res) => setData(res.map(monthToBar)));
+    } else if (activeRange.granularity === 'month') {
+      fetchMonthlyTotals(activeRange.count as number).then((res) => setData(res.map(monthToBar)));
+    } else if (activeRange.granularity === 'quarter') {
+      fetchQuarterlyTotals(activeRange.count as number).then((res) => setData(res.map(quarterToBar)));
+    } else {
+      fetchYearlyTotals(activeRange.count).then((res) => setData(res.map(yearToBar)));
+    }
+  }, [refreshCounter, dbReady, range, drill]);
 
   function selectRange(id: RangeId) {
     setRange(id);
+    setDrill(null); // range chips always mean "reset to this top-level view"
     setSetting('trends_range', id);
   }
 
-  const activeRange = RANGE_OPTIONS.find((r) => r.id === range)!;
+  function handleBarPress(key: string) {
+    if (granularity === 'year') {
+      setDrill({ level: 'year', year: Number(key) });
+    } else if (granularity === 'quarter') {
+      const [year, quarter] = key.split('-Q');
+      setDrill({ level: 'quarter', year: Number(year), quarter: Number(quarter) });
+    }
+    // month granularity: nothing finer to drill into.
+  }
+
   const hasData = data.some((m) => m.needs + m.wants + m.savings > 0);
+
+  const drillLabel = drill
+    ? drill.level === 'year'
+      ? String(drill.year)
+      : `${quarterPrefix()}${drill.quarter} ${drill.year}`
+    : null;
 
   return (
     <View style={styles.screen}>
@@ -306,7 +384,20 @@ export default function TrendsScreen() {
         {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
           <Text style={styles.screenTitle}>{t('trends.title')}</Text>
-          <Text style={styles.subtitle}>{t(activeRange.subtitleKey)}</Text>
+          {drillLabel ? (
+            <TouchableOpacity
+              testID="trends-drill-back"
+              style={styles.backPill}
+              onPress={() => setDrill(null)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Icon name="chevron-left" size={16} color={theme.colors.neonBlue} />
+              <Text style={styles.backLabel}>{drillLabel}</Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.subtitle}>{t(activeRange.subtitleKey)}</Text>
+          )}
         </View>
 
         {/* Range picker */}
@@ -338,7 +429,7 @@ export default function TrendsScreen() {
           <>
             <SummaryChips data={data} />
             <Legend />
-            <MonthlyChart data={data} />
+            <TrendsChart data={data} onBarPress={granularity === 'month' ? undefined : handleBarPress} />
           </>
         ) : (
           <View style={styles.emptyWrap}>
@@ -368,6 +459,11 @@ const styles = StyleSheet.create({
   },
   screenTitle: { ...theme.typography.headingLarge, color: theme.colors.textPrimary, letterSpacing: 2 },
   subtitle: { ...theme.typography.bodyMedium, color: theme.colors.textMuted },
+  backPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backLabel: { ...theme.typography.bodyMedium, color: theme.colors.neonBlue, fontWeight: '600' },
   rangeScroll: { flexGrow: 0 },
   rangeRow: {
     flexDirection: 'row',

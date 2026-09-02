@@ -220,11 +220,13 @@ Migration strategy: incremental `if (user_version < N)` blocks in `openAndMigrat
 
 | Function | Description |
 |----------|-------------|
-| `fetchMonthlyTotals(range: number \| 'all' = 6)` | SUM per category grouped by calendar month, zero-filled for the last N months. `range: 'all'` (2026-09-02, backs the Trends range picker's "All" option) anchors to `MIN(timestamp)`'s local month instead of a fixed lookback — `[]` when there are no transactions. Buckets with `'localtime'` so it agrees with `fetchCategoryTotals()` — see the note below. |
+| `fetchMonthlyTotals(range: number \| 'all' \| { startMonth, endMonth } = 6)` | SUM per category grouped by calendar month, zero-filled for the covered months. `'all'` anchors to `MIN(timestamp)`'s local month instead of a fixed lookback (`[]` when there are no transactions). `{ startMonth: 'YYYY-MM', endMonth: 'YYYY-MM' }` (2026-09-02) is an explicit inclusive window unrelated to "now" — powers Trends' drill-down into a specific past year or quarter. Buckets with `'localtime'` so it agrees with `fetchCategoryTotals()` — see the note below. |
+| `fetchQuarterlyTotals(quarters = 12)` | Same shape as `fetchMonthlyTotals`, bucketed by quarter (2026-09-02) — `QuarterlyTotal { quarter: 'YYYY-Q1', ... }`. Backs Trends' 3Y range (12 quarterly bars instead of 36 monthly ones). |
+| `fetchYearlyTotals(range: number \| 'all' = 5)` | Same shape again, bucketed by year (2026-09-02) — `YearlyTotal { year: 'YYYY', ... }`. Backs Trends' 5Y/All ranges. `'all'` anchors to `MIN(timestamp)`'s year, same convention as `fetchMonthlyTotals('all')`. |
 
 ## Date bucketing — a standing gotcha
 
-Both month-bucketing queries must use `strftime('%Y-%m', datetime(timestamp / 1000, 'unixepoch', 'localtime'))`. Without the `'localtime'` modifier SQLite buckets in UTC while the JS side (`currentMonthKey()`, and the `monthKeys` array `fetchMonthlyTotals` builds) uses local-time `Date` parts, so the two silently disagree near a month boundary in any non-UTC timezone. This has been fixed twice — once in `fetchCategoryTotals` (2026-07-27) and once in `fetchMonthlyTotals` (2026-08-29). Any new date-bucketing query needs the same modifier. See [[open-issues]].
+All month/quarter/year-bucketing queries must use `strftime('%Y-%m', datetime(timestamp / 1000, 'unixepoch', 'localtime'))` (or the `%Y`-only / quarter-computed variants of it). Without the `'localtime'` modifier SQLite buckets in UTC while the JS side (`currentMonthKey()`, and the bucket-key arrays `fetchMonthlyTotals`/`fetchQuarterlyTotals`/`fetchYearlyTotals` build) uses local-time `Date` parts, so the two silently disagree near a boundary in any non-UTC timezone. This has been fixed twice — once in `fetchCategoryTotals` (2026-07-27) and once in `fetchMonthlyTotals` (2026-08-29) — and the two newer functions (2026-09-02) were written with it from the start. Any new date-bucketing query needs the same modifier. See [[open-issues]].
 
 ## Formatting, i18n and classification helpers (not DB)
 

@@ -266,4 +266,18 @@ interface MonthlyTotal {
   savings: number;
 }
 
-export type { Transaction, Category, CategoryTotals, CategoryLimits, MonthlyTotal, RecurringRule, Frequency, Account, Transfer, Goal };
+interface QuarterlyTotal {
+  quarter: string; // 'YYYY-Q1'
+  needs: number;
+  wants: number;
+  savings: number;
+}
+
+interface YearlyTotal {
+  year: string; // 'YYYY'
+  needs: number;
+  wants: number;
+  savings: number;
+}
+
+export type { Transaction, Category, CategoryTotals, CategoryLimits, MonthlyTotal, QuarterlyTotal, YearlyTotal, RecurringRule, Frequency, Account, Transfer, Goal };

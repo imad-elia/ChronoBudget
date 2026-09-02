@@ -393,6 +393,107 @@ describe('fetchMonthlyTotals', () => {
     expect(middleMonth.wants).toBe(0);
     expect(middleMonth.savings).toBe(0);
   });
+
+  // Powers Trends' drill-down: a specific past year's 12 months, or a
+  // specific quarter's 3 months — an explicit window unrelated to "now",
+  // unlike the number/'all' shapes above which always end at the current month.
+  it('an explicit { startMonth, endMonth } window is bounded on both ends, not open-ended', async () => {
+    const now = new Date();
+    const farPast = new Date(now.getFullYear() - 2, 5, 15).getTime(); // ~2 years ago, June
+    await database.insertTransactionsBulk([
+      { amount: 70, category: 'needs', subcategory: 'Groceries', note: '', timestamp: farPast },
+    ]);
+    await database.insertTransaction(999, 'wants', 'Dining', ''); // "now" — must NOT appear in the window below
+
+    const pastYear = now.getFullYear() - 2;
+    const windowKey = `${pastYear}-${String(new Date(farPast).getMonth() + 1).padStart(2, '0')}`;
+    const monthlyTotals = await database.fetchMonthlyTotals({ startMonth: windowKey, endMonth: windowKey });
+
+    expect(monthlyTotals).toHaveLength(1);
+    expect(monthlyTotals[0].month).toBe(windowKey);
+    expect(monthlyTotals[0].needs).toBe(70);
+    expect(monthlyTotals[0].wants).toBe(0); // the "now" transaction is outside the window
+  });
+});
+
+describe('fetchQuarterlyTotals', () => {
+  it('buckets by quarter and fills zero for quarters with no activity', async () => {
+    await database.insertTransaction(120, 'needs', 'Groceries', '');
+
+    const now = new Date();
+    const currentQuarterKey = `${now.getFullYear()}-Q${Math.floor(now.getMonth() / 3) + 1}`;
+
+    const quarterlyTotals = await database.fetchQuarterlyTotals(4);
+    expect(quarterlyTotals).toHaveLength(4);
+
+    const currentQuarter = quarterlyTotals.find((q) => q.quarter === currentQuarterKey)!;
+    expect(currentQuarter.needs).toBe(120);
+
+    const otherQuarters = quarterlyTotals.filter((q) => q.quarter !== currentQuarterKey);
+    for (const q of otherQuarters) {
+      expect(q.needs).toBe(0);
+      expect(q.wants).toBe(0);
+      expect(q.savings).toBe(0);
+    }
+  });
+
+  // Same local-time gotcha as fetchMonthlyTotals/fetchCategoryTotals — a
+  // transaction at either edge of the current local quarter must land in the
+  // current quarter bucket, not spill into UTC's idea of the quarter.
+  it('buckets by local time, agreeing with fetchCategoryTotals for a same-quarter transaction', async () => {
+    const now = new Date();
+    const monthKey = database.currentMonthKey();
+    await database.insertTransaction(55, 'wants', 'Dining', '');
+
+    const totals = await database.fetchCategoryTotals(monthKey);
+    const currentQuarterKey = `${now.getFullYear()}-Q${Math.floor(now.getMonth() / 3) + 1}`;
+    const thisQuarter = (await database.fetchQuarterlyTotals(1)).find((q) => q.quarter === currentQuarterKey)!;
+
+    expect(totals.wants).toBe(55);
+    expect(thisQuarter.wants).toBe(totals.wants);
+  });
+});
+
+describe('fetchYearlyTotals', () => {
+  it('buckets by year and fills zero for years with no activity', async () => {
+    await database.insertTransaction(300, 'savings', '', '', null, null, 'deposit');
+
+    const currentYearKey = database.currentMonthKey().slice(0, 4);
+    const yearlyTotals = await database.fetchYearlyTotals(3);
+    expect(yearlyTotals).toHaveLength(3);
+
+    const currentYear = yearlyTotals.find((y) => y.year === currentYearKey)!;
+    expect(currentYear.savings).toBe(300);
+
+    const otherYears = yearlyTotals.filter((y) => y.year !== currentYearKey);
+    for (const y of otherYears) {
+      expect(y.needs).toBe(0);
+      expect(y.wants).toBe(0);
+      expect(y.savings).toBe(0);
+    }
+  });
+
+  it("'all' returns an empty array when there are no transactions", async () => {
+    expect(await database.fetchYearlyTotals('all')).toEqual([]);
+  });
+
+  it("'all' spans from the earliest transaction's year through the current year", async () => {
+    const now = new Date();
+    const threeYearsAgo = new Date(now.getFullYear() - 3, 5, 15).getTime();
+
+    await database.insertTransactionsBulk([
+      { amount: 90, category: 'needs', subcategory: 'Groceries', note: '', timestamp: threeYearsAgo },
+    ]);
+    await database.insertTransaction(40, 'wants', 'Dining', '');
+
+    const yearlyTotals = await database.fetchYearlyTotals('all');
+    expect(yearlyTotals).toHaveLength(4); // 3 years ago through the current year, inclusive
+
+    expect(yearlyTotals[0].year).toBe(String(now.getFullYear() - 3));
+    expect(yearlyTotals[0].needs).toBe(90);
+    expect(yearlyTotals.at(-1)!.year).toBe(String(now.getFullYear()));
+    expect(yearlyTotals.at(-1)!.wants).toBe(40);
+  });
 });
 
 describe('insertTransactionsBulk', () => {
