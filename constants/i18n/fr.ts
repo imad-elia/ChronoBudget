@@ -176,6 +176,10 @@ export const fr: Record<StringKey, string> = {
   'card.remaining': 'restant',
   'card.over': 'DÉPASSÉ',
   'card.overby': 'DÉPASSÉ DE',
+  'card.spent': 'Dépensé',
+  'card.limit': 'Limite',
+  'card.balance': 'Solde',
+  'card.used': 'Utilisé',
 
   // Manual keywords (settings + keywords modal)
   'settings.keywords': 'Mes mots-clés',

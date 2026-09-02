@@ -23,6 +23,7 @@ import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BentoCard } from '../../components/BentoCard';
+import { BentoCardDetailModal } from '../../components/BentoCardDetailModal';
 import { ExpenseInput } from '../../components/ExpenseInput';
 import { OnboardingOverlay } from '../../components/OnboardingOverlay';
 import { SettingsModal } from '../../components/SettingsModal';
@@ -293,6 +294,9 @@ function DashboardHeader({ totals, onOpenLimits, onOpenSettings, onOpenRecurring
   const total = totals.needs + totals.wants + totals.savings;
   const formatted = formatCurrency(total);
 
+  const [detailCategory, setDetailCategory] = useState<Category | null>(null);
+  const detailConfig = detailCategory ? BENTO_CONFIG.find((c) => c.id === detailCategory) : undefined;
+
   return (
     <View style={[headerStyles.container, { paddingTop: topInset + theme.spacing.lg }]}>
       <View style={headerStyles.titleRow}>
@@ -325,9 +329,24 @@ function DashboardHeader({ totals, onOpenLimits, onOpenSettings, onOpenRecurring
             icon={c.icon}
             limit={limits[c.id]}
             balance={balances[c.id]}
+            onPress={() => setDetailCategory(c.id)}
+            testID={`bento-card-${c.id}`}
           />
         ))}
       </View>
+
+      {detailConfig && (
+        <BentoCardDetailModal
+          visible={detailCategory != null}
+          onClose={() => setDetailCategory(null)}
+          title={t(detailConfig.labelKey)}
+          icon={detailConfig.icon}
+          color={detailConfig.color}
+          amount={totals[detailConfig.id]}
+          limit={limits[detailConfig.id]}
+          balance={balances[detailConfig.id]}
+        />
+      )}
 
       {accounts.length > 0 && (
         <ScrollView

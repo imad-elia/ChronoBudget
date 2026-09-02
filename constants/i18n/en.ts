@@ -176,6 +176,10 @@ export const en = {
   'card.remaining': 'left',
   'card.over': 'OVER',
   'card.overby': 'OVER BY',
+  'card.spent': 'Spent',
+  'card.limit': 'Limit',
+  'card.balance': 'Balance',
+  'card.used': 'Used',
 
   // Manual keywords (settings + keywords modal)
   'settings.keywords': 'My Keywords',

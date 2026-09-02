@@ -1,8 +1,8 @@
 import type { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Platform, StyleSheet, Text, View, type ViewStyle } from 'react-native';
-import { formatCurrency } from '../lib/format';
+import { Platform, StyleSheet, Text, TouchableOpacity, View, type ViewStyle } from 'react-native';
+import { formatCompactCurrency, formatCurrency } from '../lib/format';
 import { t } from '../lib/i18n';
 import { theme } from '../theme';
 import { ProgressBar } from './ProgressBar';
@@ -16,6 +16,8 @@ interface BentoCardProps {
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   limit?: number;
   balance?: number;
+  onPress?: () => void;
+  testID?: string;
 }
 
 /** Cross-platform substitute for `adjustsFontSizeToFit`, which RN Web ignores. */
@@ -25,8 +27,15 @@ function amountFontSize(formatted: string): number {
   return 21;
 }
 
-export function BentoCard({ title, amount, color, glowColor, gradientColors, icon, limit, balance }: BentoCardProps) {
-  const formatted = formatCurrency(amount);
+/** Amounts past this switch to compact form ("$12.3K") so they never clip
+ *  on narrow phone-width cards — full precision is one tap away. */
+const COMPACT_THRESHOLD = 1000;
+function displayAmount(n: number): string {
+  return Math.abs(n) >= COMPACT_THRESHOLD ? formatCompactCurrency(n) : formatCurrency(n);
+}
+
+export function BentoCard({ title, amount, color, glowColor, gradientColors, icon, limit, balance, onPress, testID }: BentoCardProps) {
+  const formatted = displayAmount(amount);
 
   const hasBalance = !!balance && balance > 0;
   const remaining = hasBalance ? balance - amount : 0;
@@ -35,13 +44,22 @@ export function BentoCard({ title, amount, color, glowColor, gradientColors, ico
   const rawRatio = hasLimit ? amount / limit : 0;
   const isOverLimit = hasLimit && rawRatio > 1;
 
+  const Wrapper = onPress ? TouchableOpacity : View;
+
   return (
-    <View style={[
-      styles.wrapper,
-      Platform.OS === 'web'
-        ? { boxShadow: `0 0 16px ${glowColor}59` } as ViewStyle
-        : { shadowColor: glowColor },
-    ]}>
+    <Wrapper
+      testID={testID}
+      onPress={onPress}
+      activeOpacity={onPress ? 0.85 : undefined}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={onPress ? title : undefined}
+      style={[
+        styles.wrapper,
+        Platform.OS === 'web'
+          ? { boxShadow: `0 0 16px ${glowColor}59` } as ViewStyle
+          : { shadowColor: glowColor },
+      ]}
+    >
       <LinearGradient
         colors={gradientColors}
         start={{ x: 0, y: 0 }}
@@ -67,14 +85,14 @@ export function BentoCard({ title, amount, color, glowColor, gradientColors, ico
             <View style={styles.overBadge}>
               <Icon name="wallet-outline" size={11} color="#FF2D78" />
               <Text style={styles.overBadgeText} numberOfLines={1}>
-                {`${t('card.overby')} ${formatCurrency(Math.abs(remaining))}`}
+                {`${t('card.overby')} ${displayAmount(Math.abs(remaining))}`}
               </Text>
             </View>
           ) : (
             <View style={styles.statRow}>
               <Icon name="wallet-outline" size={11} color={theme.colors.textSecondary} />
               <Text style={styles.remaining} numberOfLines={1}>
-                {formatCurrency(remaining)} {t('card.remaining')}
+                {displayAmount(remaining)} {t('card.remaining')}
               </Text>
             </View>
           )
@@ -84,7 +102,7 @@ export function BentoCard({ title, amount, color, glowColor, gradientColors, ico
           <View style={styles.overBadge}>
             <Icon name="speedometer" size={11} color="#FF2D78" />
             <Text style={styles.overBadgeText} numberOfLines={1}>
-              {`${t('card.over')} ${formatCurrency(limit!)}`}
+              {`${t('card.over')} ${displayAmount(limit!)}`}
             </Text>
           </View>
         ) : hasLimit ? (
@@ -98,7 +116,7 @@ export function BentoCard({ title, amount, color, glowColor, gradientColors, ico
           <View style={[styles.accentLine, { backgroundColor: color }]} />
         )}
       </LinearGradient>
-    </View>
+    </Wrapper>
   );
 }
 
