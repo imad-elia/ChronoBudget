@@ -102,4 +102,33 @@ describe('BentoCard', () => {
       expect(screen.queryByRole('button')).toBeNull();
     });
   });
+
+  describe('consumption prop (Savings: Limit/Balance react to withdrawals only)', () => {
+    it('without consumption, Limit/Balance still react to the plain amount (Needs/Wants, unchanged)', async () => {
+      await render(<BentoCard {...baseProps} amount={68} limit={50} />);
+      expect(screen.getByText('OVER $50.00')).toBeTruthy();
+    });
+
+    it('a deposit-heavy net amount does NOT trip the limit when consumption (withdrawn) is low', async () => {
+      // amount=500 (net saved this month) would be well over a $50 limit on its
+      // own, but consumption=10 (only $10 actually withdrawn) should be what's
+      // compared against the limit instead.
+      await render(<BentoCard {...baseProps} amount={500} limit={50} consumption={10} />);
+      expect(screen.queryByText(/OVER/)).toBeNull();
+      expect(screen.getByText('20%')).toBeTruthy(); // 10 / 50
+    });
+
+    it('a high consumption (withdrawn) trips the limit even when the net amount is low', async () => {
+      await render(<BentoCard {...baseProps} amount={5} limit={50} consumption={68} />);
+      expect(screen.getByText('OVER $50.00')).toBeTruthy();
+    });
+
+    it('balance remaining is computed against consumption, not the net amount', async () => {
+      // balance=100, amount=500 (net saved) would show as over-balance using
+      // amount alone; consumption=20 (withdrawn) should be used instead.
+      await render(<BentoCard {...baseProps} amount={500} balance={100} consumption={20} />);
+      expect(screen.getByText(/\$80\.00/)).toBeTruthy(); // 100 - 20
+      expect(screen.queryByText(/OVER/)).toBeNull();
+    });
+  });
 });

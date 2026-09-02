@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useBudgetStore } from '../store/useBudgetStore';
-import type { Category, Transaction } from '../store/useBudgetStore';
+import type { Category, Transaction, TransactionKind } from '../store/useBudgetStore';
 import { theme } from '../theme';
 import { SUBCATEGORIES, subcategoryLabel } from '../constants/subcategories';
 import { t } from '../lib/i18n';
@@ -52,6 +52,7 @@ export function EditTransactionModal({ transaction, onClose }: Props) {
   const [note, setNote] = useState('');
   const [accountId, setAccountId] = useState<number | null>(null);
   const [goalId, setGoalId] = useState<number | null>(null);
+  const [kind, setKind] = useState<TransactionKind>('deposit');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -77,6 +78,7 @@ export function EditTransactionModal({ transaction, onClose }: Props) {
     setNote(transaction.note);
     setAccountId(transaction.accountId ?? null);
     setGoalId(transaction.goalId ?? null);
+    setKind(transaction.kind ?? 'deposit');
     setError(null);
   }, [transaction]);
 
@@ -85,7 +87,10 @@ export function EditTransactionModal({ transaction, onClose }: Props) {
     setSubcategory('');
     setCustomSubcategory('');
     setShowCustomInput(false);
-    if (cat !== 'savings') setGoalId(null);
+    if (cat !== 'savings') {
+      setGoalId(null);
+      setKind('deposit');
+    }
   }
 
   function selectSubcategory(s: string) {
@@ -116,6 +121,7 @@ export function EditTransactionModal({ transaction, onClose }: Props) {
         note,
         accountId,
         goalId: category === 'savings' ? goalId : null,
+        kind: category === 'savings' ? kind : 'deposit',
       });
       useBudgetStore.getState().triggerRefresh();
       onClose();
@@ -255,6 +261,28 @@ export function EditTransactionModal({ transaction, onClose }: Props) {
                   );
                 })}
               </ScrollView>
+            )}
+
+            {/* Deposit/Withdrawal toggle (Savings category only) */}
+            {category === 'savings' && (
+              <View style={[styles.subRow, { flexDirection: 'row' }]}>
+                {(['deposit', 'withdrawal'] as TransactionKind[]).map((k) => {
+                  const active = kind === k;
+                  return (
+                    <TouchableOpacity
+                      key={k}
+                      style={[styles.subChip, active && { borderColor: activeColor, backgroundColor: `${activeColor}18` }]}
+                      onPress={() => setKind(k)}
+                      activeOpacity={0.7}
+                    >
+                      <Icon name={k === 'deposit' ? 'plus-circle-outline' : 'minus-circle-outline'} size={11} color={active ? activeColor : theme.colors.textMuted} />
+                      <Text style={[styles.subLabel, { color: active ? activeColor : theme.colors.textMuted }]}>
+                        {t(k === 'deposit' ? 'input.deposit' : 'input.withdrawal')}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             )}
 
             {/* Goal chips (Savings category only, hidden when no goals exist) */}

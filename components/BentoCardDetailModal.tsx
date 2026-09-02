@@ -15,18 +15,24 @@ interface BentoCardDetailModalProps {
   amount: number;
   limit?: number;
   balance?: number;
+  /** Drives Limit/Balance math instead of `amount`, and (when provided) swaps
+   *  the headline row for a Net saved / Deposited / Withdrawn breakdown — see
+   *  the matching prop on BentoCard for the full rationale (Savings only). */
+  consumption?: number;
 }
 
 /** Full-precision breakdown for one category, reached by tapping its BentoCard.
  *  The card itself abbreviates large amounts to avoid clipping; this sheet
  *  never abbreviates, since showing exact figures is its whole purpose. */
-export function BentoCardDetailModal({ visible, onClose, title, icon, color, amount, limit, balance }: BentoCardDetailModalProps) {
+export function BentoCardDetailModal({ visible, onClose, title, icon, color, amount, limit, balance, consumption }: BentoCardDetailModalProps) {
+  const spent = consumption ?? amount;
+
   const hasLimit = !!limit && limit > 0;
-  const rawRatio = hasLimit ? amount / limit : 0;
+  const rawRatio = hasLimit ? spent / limit : 0;
   const isOverLimit = hasLimit && rawRatio > 1;
 
   const hasBalance = !!balance && balance > 0;
-  const remaining = hasBalance ? balance - amount : 0;
+  const remaining = hasBalance ? balance - spent : 0;
   const isOverBalance = hasBalance && remaining < 0;
 
   return (
@@ -42,10 +48,27 @@ export function BentoCardDetailModal({ visible, onClose, title, icon, color, amo
             <Text style={[styles.title, { color }]}>{title}</Text>
           </View>
 
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>{t('dashboard.totalSpent')}</Text>
-            <Text style={styles.rowValue}>{formatCurrency(amount)}</Text>
-          </View>
+          {consumption !== undefined ? (
+            <>
+              <View style={styles.row}>
+                <Text style={styles.rowLabel}>{t('card.netSaved')}</Text>
+                <Text style={styles.rowValue}>{formatCurrency(amount)}</Text>
+              </View>
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>{t('card.deposited')}</Text>
+                <Text style={styles.breakdownValue}>{formatCurrency(amount + consumption)}</Text>
+              </View>
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>{t('card.withdrawn')}</Text>
+                <Text style={styles.breakdownValue}>{formatCurrency(consumption)}</Text>
+              </View>
+            </>
+          ) : (
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>{t('dashboard.totalSpent')}</Text>
+              <Text style={styles.rowValue}>{formatCurrency(amount)}</Text>
+            </View>
+          )}
 
           {hasLimit && (
             <>
@@ -133,6 +156,15 @@ const styles = StyleSheet.create({
   },
   rowLabel: { ...theme.typography.bodyMedium, color: theme.colors.textMuted },
   rowValue: { ...theme.typography.bodyLarge, fontWeight: '600', color: theme.colors.textPrimary },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingLeft: theme.spacing.md,
+    paddingVertical: 2,
+  },
+  breakdownLabel: { ...theme.typography.labelSmall, color: theme.colors.textMuted },
+  breakdownValue: { ...theme.typography.bodyMedium, color: theme.colors.textSecondary },
   subLine: {
     ...theme.typography.bodyMedium,
     color: theme.colors.textSecondary,

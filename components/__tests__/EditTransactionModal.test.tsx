@@ -16,6 +16,7 @@ const baseTransaction: Transaction = {
   subcategory: 'Dining',
   note: 'lunch',
   timestamp: Date.now(),
+  kind: 'deposit',
 };
 
 beforeEach(() => {
@@ -58,6 +59,7 @@ describe('EditTransactionModal', () => {
         note: 'lunch',
         accountId: null,
         goalId: null,
+        kind: 'deposit',
       });
     });
     expect(onClose).toHaveBeenCalled();
@@ -71,5 +73,29 @@ describe('EditTransactionModal', () => {
 
     await waitFor(() => expect(db.deleteTransaction).toHaveBeenCalledWith(42));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('shows the deposit/withdrawal toggle only for a Savings transaction, prefilled from its kind', async () => {
+    await render(<EditTransactionModal transaction={baseTransaction} onClose={onClose} />);
+    expect(screen.queryByText('Deposit')).toBeNull();
+    expect(screen.queryByText('Withdrawal')).toBeNull();
+
+    const savingsWithdrawal = { ...baseTransaction, category: 'savings' as const, kind: 'withdrawal' as const };
+    await render(<EditTransactionModal transaction={savingsWithdrawal} onClose={onClose} />);
+    expect(screen.getByText('Deposit')).toBeTruthy();
+    expect(screen.getByText('Withdrawal')).toBeTruthy();
+  });
+
+  it('saves an edited kind for a Savings transaction', async () => {
+    (db.updateTransaction as jest.Mock).mockResolvedValue(undefined);
+    const savingsDeposit = { ...baseTransaction, category: 'savings' as const, kind: 'deposit' as const };
+    await render(<EditTransactionModal transaction={savingsDeposit} onClose={onClose} />);
+
+    await fireEvent.press(screen.getByText('Withdrawal'));
+    await fireEvent.press(screen.getByText('Save'));
+
+    await waitFor(() => {
+      expect(db.updateTransaction).toHaveBeenCalledWith(42, expect.objectContaining({ kind: 'withdrawal' }));
+    });
   });
 });

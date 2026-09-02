@@ -63,4 +63,38 @@ describe('BentoCardDetailModal', () => {
     fireEvent.press(screen.getByText('Done'));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  describe('consumption prop (Savings: Net saved / Deposited / Withdrawn breakdown)', () => {
+    it('shows Net saved + a Deposited/Withdrawn breakdown instead of "Spent This Month" when consumption is provided', async () => {
+      // amount=350 is net (deposits - withdrawals); consumption=150 is withdrawn,
+      // so deposited is derived as amount + consumption = 500.
+      await render(<BentoCardDetailModal {...baseProps} amount={350} consumption={150} />);
+      expect(screen.getByText('Net saved this month')).toBeTruthy();
+      expect(screen.getByText('$350.00')).toBeTruthy();
+      expect(screen.getByText('Deposited')).toBeTruthy();
+      expect(screen.getByText('$500.00')).toBeTruthy();
+      expect(screen.getByText('Withdrawn')).toBeTruthy();
+      expect(screen.getByText('$150.00')).toBeTruthy();
+      expect(screen.queryByText('Spent This Month')).toBeNull();
+    });
+
+    it('Needs/Wants (no consumption prop) keep the plain "Spent This Month" row', async () => {
+      await render(<BentoCardDetailModal {...baseProps} amount={350} />);
+      expect(screen.getByText('Spent This Month')).toBeTruthy();
+      expect(screen.queryByText('Net saved this month')).toBeNull();
+    });
+
+    it('limit consumption reacts to withdrawn (consumption), not the net saved amount', async () => {
+      // amount=500 (net saved) would trip a $50 limit on its own; consumption=10
+      // (withdrawn) should be what's actually compared against the limit.
+      await render(<BentoCardDetailModal {...baseProps} amount={500} limit={50} consumption={10} />);
+      expect(screen.getByText('20% used')).toBeTruthy(); // 10 / 50
+      expect(screen.queryByText(/OVER/)).toBeNull();
+    });
+
+    it('balance remaining reacts to withdrawn (consumption), not the net saved amount', async () => {
+      await render(<BentoCardDetailModal {...baseProps} amount={500} balance={100} consumption={20} />);
+      expect(screen.getByText('$80.00 left')).toBeTruthy(); // 100 - 20
+    });
+  });
 });

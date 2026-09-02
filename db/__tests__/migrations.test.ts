@@ -152,7 +152,7 @@ describe.each([3, 4, 5, 6, 7])('upgrade from schema v%i', (version) => {
   it('reaches v8 with every table present and no user data lost', async () => {
     const database = await seedAtVersionAndMigrate(version);
 
-    expect(await userVersion(database)).toBe(8);
+    expect(await userVersion(database)).toBe(9);
 
     const conn = await database.getDb();
     const tables = await conn.getAllAsync<{ name: string }>(
@@ -223,6 +223,6 @@ describe('the destructive v1 migration', () => {
     // Re-running the full ladder (an app relaunch) must not drop anything.
     await database.openAndMigrate();
     expect(await database.fetchTransactions()).toHaveLength(2);
-    expect(await userVersion(database)).toBe(8);
+    expect(await userVersion(database)).toBe(9);
   });
 });

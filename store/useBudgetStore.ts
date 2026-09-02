@@ -23,6 +23,11 @@ type Category = 'needs' | 'wants' | 'savings';
 
 type Frequency = 'weekly' | 'monthly' | 'yearly';
 
+// Meaningful only for Savings transactions — a deposit adds to the category
+// total / a tagged goal's progress, a withdrawal subtracts. Needs/Wants
+// transactions are always implicitly 'deposit' (i.e. spend).
+export type TransactionKind = 'deposit' | 'withdrawal';
+
 type LearnedKeywords = Record<string, { category: Category; subcategory: string }>;
 
 interface RecurringRule {
@@ -46,6 +51,7 @@ interface Transaction {
   timestamp: number;
   accountId?: number | null;
   goalId?: number | null;
+  kind: TransactionKind;
 }
 
 interface Account {

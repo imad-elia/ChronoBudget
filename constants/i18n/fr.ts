@@ -140,6 +140,8 @@ export const fr: Record<StringKey, string> = {
   'goals.deleteBlocked': 'Cet objectif a des transactions et ne peut pas être supprimé.',
   'input.goal': 'Objectif',
   'input.noGoal': 'Aucun',
+  'input.deposit': 'Dépôt',
+  'input.withdrawal': 'Retrait',
 
   // Edit transaction
   'edit.title': 'Modifier la transaction',
@@ -180,6 +182,9 @@ export const fr: Record<StringKey, string> = {
   'card.limit': 'Limite',
   'card.balance': 'Solde',
   'card.used': 'Utilisé',
+  'card.netSaved': 'Épargné net ce mois-ci',
+  'card.deposited': 'Déposé',
+  'card.withdrawn': 'Retiré',
 
   // Manual keywords (settings + keywords modal)
   'settings.keywords': 'Mes mots-clés',

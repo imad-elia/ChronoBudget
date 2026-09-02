@@ -16,6 +16,11 @@ interface BentoCardProps {
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   limit?: number;
   balance?: number;
+  /** Drives Limit/Balance math instead of `amount` when provided — e.g. Savings
+   *  passes its withdrawn-only total here, since only withdrawing should count
+   *  against a Savings limit or reduce its balance remaining, not depositing.
+   *  Defaults to `amount` (unchanged behavior) when omitted. */
+  consumption?: number;
   onPress?: () => void;
   testID?: string;
 }
@@ -34,14 +39,15 @@ function displayAmount(n: number): string {
   return Math.abs(n) >= COMPACT_THRESHOLD ? formatCompactCurrency(n) : formatCurrency(n);
 }
 
-export function BentoCard({ title, amount, color, glowColor, gradientColors, icon, limit, balance, onPress, testID }: BentoCardProps) {
+export function BentoCard({ title, amount, color, glowColor, gradientColors, icon, limit, balance, consumption, onPress, testID }: BentoCardProps) {
   const formatted = displayAmount(amount);
+  const spent = consumption ?? amount;
 
   const hasBalance = !!balance && balance > 0;
-  const remaining = hasBalance ? balance - amount : 0;
+  const remaining = hasBalance ? balance - spent : 0;
 
   const hasLimit = !!limit && limit > 0;
-  const rawRatio = hasLimit ? amount / limit : 0;
+  const rawRatio = hasLimit ? spent / limit : 0;
   const isOverLimit = hasLimit && rawRatio > 1;
 
   const Wrapper = onPress ? TouchableOpacity : View;

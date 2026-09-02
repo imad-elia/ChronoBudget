@@ -1,5 +1,5 @@
 import { useBudgetStore } from '../../store/useBudgetStore';
-import { formatCurrency, formatCompactCurrency, formatNumber, formatDate } from '../format';
+import { formatCurrency, formatCompactCurrency, formatNumber, formatDate, formatSignedAmount } from '../format';
 
 function seedStore(overrides: Partial<ReturnType<typeof useBudgetStore.getState>> = {}) {
   useBudgetStore.setState({
@@ -44,6 +44,22 @@ describe('formatCompactCurrency', () => {
 
   it('groups thousands within the compact form past a million', () => {
     expect(formatCompactCurrency(1001249.01)).toBe('$1,001.2K');
+  });
+});
+
+describe('formatSignedAmount', () => {
+  beforeEach(() => seedStore());
+
+  it('renders a deposit with no prefix, same as formatCurrency', () => {
+    expect(formatSignedAmount({ amount: 50, kind: 'deposit' })).toBe('$50.00');
+  });
+
+  it('renders a withdrawal with a leading "-" so it reads distinctly from a deposit', () => {
+    expect(formatSignedAmount({ amount: 50, kind: 'withdrawal' })).toBe('-$50.00');
+  });
+
+  it('treats a missing kind (Needs/Wants rows) the same as a deposit', () => {
+    expect(formatSignedAmount({ amount: 50 })).toBe('$50.00');
   });
 });
 

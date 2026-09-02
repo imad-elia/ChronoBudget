@@ -16,7 +16,7 @@ describe('schema migration', () => {
   it('migrates a fresh DB to the latest schema version with all tables', async () => {
     const conn = await database.getDb();
     const [{ user_version }] = await conn.getAllAsync<{ user_version: number }>('PRAGMA user_version');
-    expect(user_version).toBe(8);
+    expect(user_version).toBe(9);
 
     const tables = await conn.getAllAsync<{ name: string }>(
       "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",
@@ -55,7 +55,7 @@ describe('migration idempotency', () => {
 
     const conn = await database.getDb();
     const [{ user_version }] = await conn.getAllAsync<{ user_version: number }>('PRAGMA user_version');
-    expect(user_version).toBe(8);
+    expect(user_version).toBe(9);
 
     const totals = await database.fetchCategoryTotals();
     expect(totals.needs).toBe(20);
@@ -609,6 +609,97 @@ describe('goals', () => {
     const deleted = await database.deleteGoal(goal.id);
     expect(deleted).toBe(true);
     expect(await database.fetchGoals()).toHaveLength(0);
+  });
+});
+
+// Every transaction implicitly defaults to 'deposit' — Needs/Wants never see
+// a withdrawal option, only Savings does. These cover the signed-delta math
+// that makes a withdrawal net out of both the category total and (if tagged)
+// a goal's progress, and — easy to miss — credit rather than debit a tagged
+// account, since money is coming back OUT of the abstract savings bucket.
+describe('savings deposit/withdrawal direction', () => {
+  it('defaults to deposit when kind is omitted, unchanged from before this existed', async () => {
+    await database.insertTransaction(500, 'savings', '', '');
+    const totals = await database.fetchCategoryTotals(null);
+    expect(totals.savings).toBe(500);
+  });
+
+  it('nets a withdrawal out of the monthly category total', async () => {
+    await database.insertTransaction(500, 'savings', '', '', null, null, 'deposit');
+    await database.insertTransaction(200, 'savings', '', '', null, null, 'withdrawal');
+    const totals = await database.fetchCategoryTotals(null);
+    expect(totals.savings).toBe(300);
+  });
+
+  it('decrements a tagged goal\'s current_amount on withdrawal', async () => {
+    await database.insertGoal('Car repair fund', 2000);
+    const [goal] = await database.fetchGoals();
+    await database.insertTransaction(500, 'savings', '', '', null, goal.id, 'deposit');
+    await database.insertTransaction(150, 'savings', '', '', null, goal.id, 'withdrawal');
+    const [after] = await database.fetchGoals();
+    expect(after.currentAmount).toBe(350);
+  });
+
+  it('credits (not debits) a tagged account on withdrawal', async () => {
+    await database.insertAccount('Checking', 100);
+    const [account] = await database.fetchAccounts();
+    await database.insertTransaction(500, 'savings', '', '', account.id, null, 'deposit');
+    const [afterDeposit] = await database.fetchAccounts();
+    expect(afterDeposit.balance).toBe(-400); // 100 - 500
+
+    await database.insertTransaction(200, 'savings', '', '', account.id, null, 'withdrawal');
+    const [afterWithdrawal] = await database.fetchAccounts();
+    expect(afterWithdrawal.balance).toBe(-200); // -400 + 200
+  });
+
+  it('reverses the previous kind and applies the new one when a transaction\'s kind is edited', async () => {
+    await database.insertGoal('Car repair fund', 2000);
+    const [goal] = await database.fetchGoals();
+    await database.insertTransaction(500, 'savings', '', '', null, goal.id, 'deposit');
+    const [tx] = await database.fetchTransactions();
+
+    await database.updateTransaction(tx.id, {
+      amount: 500,
+      category: 'savings',
+      subcategory: '',
+      note: '',
+      goalId: goal.id,
+      kind: 'withdrawal',
+    });
+
+    const [after] = await database.fetchGoals();
+    expect(after.currentAmount).toBe(-500); // 500 reversed (-500) then -500 applied
+  });
+
+  it('reverses a withdrawal\'s effect (adds back) when it is deleted', async () => {
+    await database.insertGoal('Car repair fund', 2000);
+    const [goal] = await database.fetchGoals();
+    await database.insertTransaction(800, 'savings', '', '', null, goal.id, 'deposit');
+    await database.insertTransaction(300, 'savings', '', '', null, goal.id, 'withdrawal');
+    const all = await database.fetchTransactions();
+    const withdrawalTx = all.find((t) => t.kind === 'withdrawal')!;
+
+    await database.deleteTransaction(withdrawalTx.id);
+
+    const [after] = await database.fetchGoals();
+    expect(after.currentAmount).toBe(800);
+  });
+
+  // fetchSavingsWithdrawn is the figure Limit/Balance consumption should react
+  // to for Savings — depositing (growing savings) must never count against a
+  // Savings limit or reduce a Savings balance's remaining; only withdrawing should.
+  it('fetchSavingsWithdrawn sums only withdrawals, ignoring deposits and other categories', async () => {
+    await database.insertTransaction(500, 'savings', '', '', null, null, 'deposit');
+    await database.insertTransaction(150, 'savings', '', '', null, null, 'withdrawal');
+    await database.insertTransaction(80, 'savings', '', '', null, null, 'withdrawal');
+    await database.insertTransaction(999, 'needs', 'Groceries', ''); // unaffected — different category
+
+    expect(await database.fetchSavingsWithdrawn(null)).toBe(230);
+  });
+
+  it('fetchSavingsWithdrawn returns 0 when the only Savings activity is deposits', async () => {
+    await database.insertTransaction(500, 'savings', '', '', null, null, 'deposit');
+    expect(await database.fetchSavingsWithdrawn(null)).toBe(0);
   });
 });
 

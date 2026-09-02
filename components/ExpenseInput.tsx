@@ -14,7 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { insertTransaction, learnKeyword } from '../db/database';
 import { getSetting, setSetting } from '../db/database';
 import { useBudgetStore } from '../store/useBudgetStore';
-import type { Category } from '../store/useBudgetStore';
+import type { Category, TransactionKind } from '../store/useBudgetStore';
 import { theme } from '../theme';
 import { SUBCATEGORIES, subcategoryLabel } from '../constants/subcategories';
 import { parseEntry, detectCategory, learnKey } from '../lib/detectCategory';
@@ -43,6 +43,7 @@ export function ExpenseInput() {
   const [subcategory, setSubcategory] = useState('');
   const [accountId, setAccountId] = useState<number | null>(null);
   const [goalId, setGoalId] = useState<number | null>(null);
+  const [kind, setKind] = useState<TransactionKind>('deposit');
   const [customSubcategory, setCustomSubcategory] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [overridden, setOverridden] = useState(false);
@@ -101,6 +102,7 @@ export function ExpenseInput() {
     setShowOverride(false);
     setAccountId(null);
     setGoalId(null);
+    setKind('deposit');
   }
 
   function switchMode(m: InputMode) {
@@ -121,7 +123,10 @@ export function ExpenseInput() {
     setShowCustomInput(false);
     setOverridden(true);
     setError(null);
-    if (cat !== 'savings') setGoalId(null);
+    if (cat !== 'savings') {
+      setGoalId(null);
+      setKind('deposit');
+    }
   }
 
   function selectSubcategory(s: string) {
@@ -168,6 +173,7 @@ export function ExpenseInput() {
         mode === 'detailed' ? note : description,
         accountId,
         category === 'savings' ? goalId : null,
+        category === 'savings' ? kind : 'deposit',
       );
 
       // Learn from corrections and confirmed no-matches so the guess improves
@@ -285,6 +291,33 @@ export function ExpenseInput() {
     );
   };
 
+  // Deposit/Withdrawal direction. Only relevant (and shown) for the Savings
+  // category — Needs/Wants transactions are always implicitly a "deposit"
+  // (i.e. spend), so they never see this toggle.
+  const renderKindToggle = () => {
+    if (category !== 'savings') return null;
+    return (
+      <View style={[styles.subRow, { flexDirection: 'row' }]}>
+        {(['deposit', 'withdrawal'] as TransactionKind[]).map((k) => {
+          const active = kind === k;
+          return (
+            <TouchableOpacity
+              key={k}
+              style={[styles.subChip, active && { borderColor: activeColor, backgroundColor: `${activeColor}18` }]}
+              onPress={() => setKind(k)}
+              activeOpacity={0.7}
+            >
+              <Icon name={k === 'deposit' ? 'plus-circle-outline' : 'minus-circle-outline'} size={11} color={active ? activeColor : theme.colors.textMuted} />
+              <Text style={[styles.subLabel, { color: active ? activeColor : theme.colors.textMuted }]}>
+                {t(k === 'deposit' ? 'input.deposit' : 'input.withdrawal')}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
+
   // Optional savings-goal tag. Only relevant (and shown) for the Savings
   // category, and hidden entirely when no goals exist yet.
   const renderGoalChips = () => {
@@ -341,6 +374,25 @@ export function ExpenseInput() {
     return (
       <View style={styles.previewRow}>
         <Icon name="arrow-right-thin" size={15} color={activeColor} />
+        {/* Fast mode otherwise defaults every Savings entry to Deposit with no
+            visible sign of it — this chip surfaces (and lets you flip) the
+            direction right in the always-visible preview, no need to open the
+            full override panel just to fix it. Detailed mode already shows the
+            same toggle inline in the form, so it's skipped here to avoid a
+            redundant second copy. */}
+        {mode === 'fast' && category === 'savings' && (
+          <TouchableOpacity
+            style={[styles.previewKindChip, { borderColor: `${activeColor}60`, backgroundColor: `${activeColor}18` }]}
+            onPress={() => setKind((k) => (k === 'deposit' ? 'withdrawal' : 'deposit'))}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+          >
+            <Icon name={kind === 'deposit' ? 'plus-circle-outline' : 'minus-circle-outline'} size={11} color={activeColor} />
+            <Text style={[styles.previewKindText, { color: activeColor }]}>
+              {t(kind === 'deposit' ? 'input.deposit' : 'input.withdrawal')}
+            </Text>
+          </TouchableOpacity>
+        )}
         {mode === 'fast' ? (
           <TouchableOpacity
             style={styles.previewTappable}
@@ -404,6 +456,7 @@ export function ExpenseInput() {
                 if (v.trim() === '') {
                   setOverridden(false);
                   setShowOverride(false);
+                  setKind('deposit');
                 }
               }}
               returnKeyType="done"
@@ -423,6 +476,9 @@ export function ExpenseInput() {
               {renderCategoryChips()}
               {renderSubcategoryChips()}
               {renderAccountChips()}
+              {/* Kind (Deposit/Withdrawal) has its own always-visible chip in
+                  the preview row above — not repeated here, to avoid two
+                  controls for the same state open at once. */}
               {renderGoalChips()}
               {showCustomInput && (
                 <View style={[styles.inputWrapper, { borderColor: `${activeColor}40` }]}>
@@ -473,6 +529,9 @@ export function ExpenseInput() {
 
           {/* Account chips (hidden when no accounts exist) */}
           {renderAccountChips()}
+
+          {/* Deposit/Withdrawal toggle (Savings category only) */}
+          {renderKindToggle()}
 
           {/* Goal chips (Savings category only, hidden when no goals exist) */}
           {renderGoalChips()}
@@ -633,6 +692,19 @@ const styles = StyleSheet.create({
   },
   previewEditIcon: {
     marginLeft: 2,
+  },
+  previewKindChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    marginRight: 4,
+  },
+  previewKindText: {
+    ...theme.typography.labelSmall,
   },
   subRow: {
     gap: theme.spacing.sm,

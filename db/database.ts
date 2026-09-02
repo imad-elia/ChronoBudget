@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
-import type { Category, Transaction, CategoryTotals, CategoryLimits, MonthlyTotal, RecurringRule, Frequency, Account, Transfer, Goal } from '../store/useBudgetStore';
+import type { Category, Transaction, CategoryTotals, CategoryLimits, MonthlyTotal, RecurringRule, Frequency, Account, Transfer, Goal, TransactionKind } from '../store/useBudgetStore';
 import { advance } from '../lib/recurrence';
 
 // Native uses a persistent on-disk SQLite file. Web uses an in-memory database:
@@ -12,7 +12,7 @@ import { advance } from '../lib/recurrence';
 // Tradeoff: web data resets on page reload.
 const DB_NAME = Platform.OS === 'web' ? ':memory:' : 'chronobudget.db';
 
-const SCHEMA_VERSION = 8;
+const SCHEMA_VERSION = 9;
 
 // Open the connection AND run migrations as one atomic operation, then memoize
 // the resulting promise. Because every DB helper calls getDb(), this guarantees
@@ -148,6 +148,19 @@ export async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
     `);
   }
 
+  if (user_version < 9) {
+    // Savings transactions had no direction: every row was implicitly "money
+    // added". 'kind' distinguishes a deposit (grows the category total / a
+    // tagged goal's progress) from a withdrawal (shrinks them) — see
+    // [[savings-goals-schema]]. Meaningful only for category = 'savings';
+    // Needs/Wants rows keep the default and are never shown a way to change it.
+    // No CHECK constraint (see the ALTER-CHECK precedent in the goals migration
+    // above) — validated in application code instead.
+    await database.execAsync(`
+      ALTER TABLE transactions ADD COLUMN kind TEXT NOT NULL DEFAULT 'deposit';
+    `);
+  }
+
   await database.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION};`);
 
   return database;
@@ -241,11 +254,15 @@ export async function insertTransaction(
   note: string,
   accountId?: number | null,
   goalId?: number | null,
+  kind: TransactionKind = 'deposit',
 ): Promise<void> {
   const database = await getDb();
+  // A withdrawal reverses the usual "money leaves the account, joins the
+  // goal/category" direction — it's money coming back OUT of savings.
+  const delta = kind === 'withdrawal' ? -amount : amount;
   await database.withTransactionAsync(async () => {
     await database.runAsync(
-      'INSERT INTO transactions (amount, category, subcategory, note, timestamp, account_id, goal_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO transactions (amount, category, subcategory, note, timestamp, account_id, goal_id, kind) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       amount,
       category,
       subcategory.trim(),
@@ -253,12 +270,13 @@ export async function insertTransaction(
       Date.now(),
       accountId ?? null,
       goalId ?? null,
+      kind,
     );
     if (accountId) {
-      await database.runAsync('UPDATE accounts SET balance = balance - ? WHERE id = ?', amount, accountId);
+      await database.runAsync('UPDATE accounts SET balance = balance - ? WHERE id = ?', delta, accountId);
     }
     if (goalId) {
-      await database.runAsync('UPDATE goals SET current_amount = current_amount + ? WHERE id = ?', amount, goalId);
+      await database.runAsync('UPDATE goals SET current_amount = current_amount + ? WHERE id = ?', delta, goalId);
     }
   });
 }
@@ -272,35 +290,39 @@ export async function updateTransaction(
     note: string;
     accountId?: number | null;
     goalId?: number | null;
+    kind?: TransactionKind;
   },
 ): Promise<void> {
   const database = await getDb();
+  const nextKind = fields.kind ?? 'deposit';
   await database.withTransactionAsync(async () => {
-    const [prev] = await database.getAllAsync<{ amount: number; account_id: number | null; goal_id: number | null }>(
-      'SELECT amount, account_id, goal_id FROM transactions WHERE id = ?',
+    const [prev] = await database.getAllAsync<{ amount: number; account_id: number | null; goal_id: number | null; kind: TransactionKind }>(
+      'SELECT amount, account_id, goal_id, kind FROM transactions WHERE id = ?',
       id,
     );
     const nextAccountId = fields.accountId ?? null;
     const nextGoalId = fields.goalId ?? null;
+    const prevDelta = prev ? (prev.kind === 'withdrawal' ? -prev.amount : prev.amount) : 0;
+    const nextDelta = nextKind === 'withdrawal' ? -fields.amount : fields.amount;
 
     // Reverse the previous transaction's effect on its account/goal, then apply
-    // the new one — handles amount changes, account/goal changes, and removal.
+    // the new one — handles amount/kind changes, account/goal changes, and removal.
     if (prev?.account_id) {
-      await database.runAsync('UPDATE accounts SET balance = balance + ? WHERE id = ?', prev.amount, prev.account_id);
+      await database.runAsync('UPDATE accounts SET balance = balance + ? WHERE id = ?', prevDelta, prev.account_id);
     }
     if (nextAccountId) {
-      await database.runAsync('UPDATE accounts SET balance = balance - ? WHERE id = ?', fields.amount, nextAccountId);
+      await database.runAsync('UPDATE accounts SET balance = balance - ? WHERE id = ?', nextDelta, nextAccountId);
     }
     if (prev?.goal_id) {
-      await database.runAsync('UPDATE goals SET current_amount = current_amount - ? WHERE id = ?', prev.amount, prev.goal_id);
+      await database.runAsync('UPDATE goals SET current_amount = current_amount - ? WHERE id = ?', prevDelta, prev.goal_id);
     }
     if (nextGoalId) {
-      await database.runAsync('UPDATE goals SET current_amount = current_amount + ? WHERE id = ?', fields.amount, nextGoalId);
+      await database.runAsync('UPDATE goals SET current_amount = current_amount + ? WHERE id = ?', nextDelta, nextGoalId);
     }
 
     await database.runAsync(
       `UPDATE transactions
-       SET amount = ?, category = ?, subcategory = ?, note = ?, account_id = ?, goal_id = ?
+       SET amount = ?, category = ?, subcategory = ?, note = ?, account_id = ?, goal_id = ?, kind = ?
        WHERE id = ?`,
       fields.amount,
       fields.category,
@@ -308,6 +330,7 @@ export async function updateTransaction(
       fields.note.trim(),
       nextAccountId,
       nextGoalId,
+      nextKind,
       id,
     );
   });
@@ -338,15 +361,16 @@ export async function insertTransactionsBulk(
 export async function deleteTransaction(id: number): Promise<void> {
   const database = await getDb();
   await database.withTransactionAsync(async () => {
-    const [prev] = await database.getAllAsync<{ amount: number; account_id: number | null; goal_id: number | null }>(
-      'SELECT amount, account_id, goal_id FROM transactions WHERE id = ?',
+    const [prev] = await database.getAllAsync<{ amount: number; account_id: number | null; goal_id: number | null; kind: TransactionKind }>(
+      'SELECT amount, account_id, goal_id, kind FROM transactions WHERE id = ?',
       id,
     );
+    const delta = prev ? (prev.kind === 'withdrawal' ? -prev.amount : prev.amount) : 0;
     if (prev?.account_id) {
-      await database.runAsync('UPDATE accounts SET balance = balance + ? WHERE id = ?', prev.amount, prev.account_id);
+      await database.runAsync('UPDATE accounts SET balance = balance + ? WHERE id = ?', delta, prev.account_id);
     }
     if (prev?.goal_id) {
-      await database.runAsync('UPDATE goals SET current_amount = current_amount - ? WHERE id = ?', prev.amount, prev.goal_id);
+      await database.runAsync('UPDATE goals SET current_amount = current_amount - ? WHERE id = ?', delta, prev.goal_id);
     }
     await database.runAsync('DELETE FROM transactions WHERE id = ?', id);
   });
@@ -362,13 +386,15 @@ export async function fetchCategoryTotals(
   monthKey: string | null = currentMonthKey(),
 ): Promise<CategoryTotals> {
   const database = await getDb();
+  // Withdrawals subtract rather than add — this nets Savings deposits and
+  // withdrawals into one figure. A no-op for Needs/Wants, which are always 'deposit'.
   const rows = await database.getAllAsync<{ category: Category; total: number }>(
     monthKey
-      ? `SELECT category, COALESCE(SUM(amount), 0) AS total
+      ? `SELECT category, COALESCE(SUM(CASE WHEN kind = 'withdrawal' THEN -amount ELSE amount END), 0) AS total
          FROM transactions
          WHERE strftime('%Y-%m', datetime(timestamp / 1000, 'unixepoch', 'localtime')) = ?
          GROUP BY category`
-      : `SELECT category, COALESCE(SUM(amount), 0) AS total
+      : `SELECT category, COALESCE(SUM(CASE WHEN kind = 'withdrawal' THEN -amount ELSE amount END), 0) AS total
          FROM transactions
          GROUP BY category`,
     ...(monthKey ? [monthKey] : []),
@@ -380,10 +406,33 @@ export async function fetchCategoryTotals(
   return totals;
 }
 
+// How much has been drawn OUT of savings — the figure that Limit/Balance
+// consumption should react to, as distinct from fetchCategoryTotals' net
+// (deposits − withdrawals) figure that drives the headline display amount.
+// Depositing grows savings (good); only withdrawing should count against a
+// Savings limit or reduce a Savings starting-balance remaining.
+export async function fetchSavingsWithdrawn(
+  monthKey: string | null = currentMonthKey(),
+): Promise<number> {
+  const database = await getDb();
+  const rows = await database.getAllAsync<{ total: number }>(
+    monthKey
+      ? `SELECT COALESCE(SUM(amount), 0) AS total
+         FROM transactions
+         WHERE category = 'savings' AND kind = 'withdrawal'
+           AND strftime('%Y-%m', datetime(timestamp / 1000, 'unixepoch', 'localtime')) = ?`
+      : `SELECT COALESCE(SUM(amount), 0) AS total
+         FROM transactions
+         WHERE category = 'savings' AND kind = 'withdrawal'`,
+    ...(monthKey ? [monthKey] : []),
+  );
+  return rows[0]?.total ?? 0;
+}
+
 export async function fetchRecentTransactions(limit = 20): Promise<Transaction[]> {
   const database = await getDb();
   return database.getAllAsync<Transaction>(
-    `SELECT id, amount, category, subcategory, note, timestamp, account_id AS accountId, goal_id AS goalId
+    `SELECT id, amount, category, subcategory, note, timestamp, account_id AS accountId, goal_id AS goalId, kind
      FROM transactions
      ORDER BY timestamp DESC
      LIMIT ?`,
@@ -398,7 +447,7 @@ export async function fetchTransactions(
   const database = await getDb();
   if (category) {
     return database.getAllAsync<Transaction>(
-      `SELECT id, amount, category, subcategory, note, timestamp, account_id AS accountId, goal_id AS goalId
+      `SELECT id, amount, category, subcategory, note, timestamp, account_id AS accountId, goal_id AS goalId, kind
        FROM transactions
        WHERE category = ?
        ORDER BY timestamp DESC
@@ -408,7 +457,7 @@ export async function fetchTransactions(
     );
   }
   return database.getAllAsync<Transaction>(
-    `SELECT id, amount, category, subcategory, note, timestamp, account_id AS accountId, goal_id AS goalId
+    `SELECT id, amount, category, subcategory, note, timestamp, account_id AS accountId, goal_id AS goalId, kind
      FROM transactions
      ORDER BY timestamp DESC
      LIMIT ?`,
@@ -754,7 +803,7 @@ export async function fetchMonthlyTotals(months = 6): Promise<MonthlyTotal[]> {
     `SELECT
        strftime('%Y-%m', datetime(timestamp / 1000, 'unixepoch', 'localtime')) AS month,
        category,
-       SUM(amount) AS total
+       SUM(CASE WHEN kind = 'withdrawal' THEN -amount ELSE amount END) AS total
      FROM transactions
      WHERE strftime('%Y-%m', datetime(timestamp / 1000, 'unixepoch', 'localtime')) >= ?
      GROUP BY month, category

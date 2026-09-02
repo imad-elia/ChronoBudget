@@ -36,7 +36,7 @@ import { fetchTransactions, deleteTransaction, insertTransactionsBulk } from '..
 import { EditTransactionModal } from '../../components/EditTransactionModal';
 import { useBudgetStore, type Transaction, type Category } from '../../store/useBudgetStore';
 import { theme } from '../../theme';
-import { formatCurrency } from '../../lib/format';
+import { formatCurrency, formatSignedAmount } from '../../lib/format';
 import { t } from '../../lib/i18n';
 import { subcategoryLabel } from '../../constants/subcategories';
 import { parseCsv } from '../../lib/csv';
@@ -90,7 +90,7 @@ function HistoryRow({ item, onDelete, onEdit }: { item: Transaction; onDelete: (
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  const formatted = formatCurrency(item.amount);
+  const formatted = formatSignedAmount(item);
   const time = new Date(item.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
   return (

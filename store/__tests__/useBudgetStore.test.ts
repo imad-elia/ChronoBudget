@@ -31,7 +31,7 @@ describe('simple setters', () => {
   });
 
   it('setRecentTransactions replaces the list', () => {
-    const tx = [{ id: 1, amount: 5, category: 'needs' as const, subcategory: '', note: '', timestamp: 0 }];
+    const tx = [{ id: 1, amount: 5, category: 'needs' as const, subcategory: '', note: '', timestamp: 0, kind: 'deposit' as const }];
     useBudgetStore.getState().setRecentTransactions(tx);
     expect(useBudgetStore.getState().recentTransactions).toEqual(tx);
   });

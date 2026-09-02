@@ -1,4 +1,5 @@
 import { useBudgetStore } from '../store/useBudgetStore';
+import type { TransactionKind } from '../store/useBudgetStore';
 
 // Centralized currency / number / date formatting. Reads the active locale +
 // currency from the store. Intl.NumberFormat is tried first, but Hermes' bundled
@@ -24,6 +25,13 @@ export function formatCurrency(amount: number): string {
   } catch {
     return `${symbol}${grouped(amount, currencyDecimals)}`;
   }
+}
+
+/** A transaction row's amount, prefixed with "-" for a Savings withdrawal so
+ *  it reads distinctly from a deposit in History/Recent lists — otherwise the
+ *  two look identical despite moving money in opposite directions. */
+export function formatSignedAmount(item: { amount: number; kind?: TransactionKind }): string {
+  return item.kind === 'withdrawal' ? `-${formatCurrency(item.amount)}` : formatCurrency(item.amount);
 }
 
 /** Compact currency for tight spaces (e.g. "$1.2K", "$1,001.2K"). */

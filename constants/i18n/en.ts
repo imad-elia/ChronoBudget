@@ -140,6 +140,8 @@ export const en = {
   'goals.deleteBlocked': 'This goal has transactions and can’t be deleted.',
   'input.goal': 'Goal',
   'input.noGoal': 'None',
+  'input.deposit': 'Deposit',
+  'input.withdrawal': 'Withdrawal',
 
   // Edit transaction
   'edit.title': 'Edit transaction',
@@ -180,6 +182,9 @@ export const en = {
   'card.limit': 'Limit',
   'card.balance': 'Balance',
   'card.used': 'Used',
+  'card.netSaved': 'Net saved this month',
+  'card.deposited': 'Deposited',
+  'card.withdrawn': 'Withdrawn',
 
   // Manual keywords (settings + keywords modal)
   'settings.keywords': 'My Keywords',

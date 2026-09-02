@@ -85,6 +85,24 @@ User reported (testing on a Samsung S26 Ultra) that once spend/limit/balance amo
 - **Not browser-tested this round** — user is verifying directly on their S26 Ultra.
 - **Follow-up (same day): compact threshold lowered from $10K to $1K.** `components/BentoCard.tsx`'s `COMPACT_THRESHOLD` changed from `10000` to `1000` per user request — amounts now compact ("$1.2K") starting at $1,000 instead of $10,000. `BentoCardDetailModal.tsx` unaffected (always shows exact figures, by design). Test suite's threshold-boundary case updated to use an under-$1K amount. `tsc`/`npm run check`/`npm test` (214/214) clean.
 
+## Savings had no deposit/withdrawal direction (2026-09-02, later session)
+
+User raised a conceptual gap (not a bug report): Savings transactions could only ever mean "money added" — `transactions.amount` had no sign anywhere in the schema, so there was no way to record taking money out of savings (e.g. using the "Car repair fund" to actually pay for a repair).
+
+### Fixed
+- Schema migration v9 adds `transactions.kind` ('deposit' | 'withdrawal', default 'deposit'). A new Deposit/Withdrawal toggle appears in `ExpenseInput.tsx`/`EditTransactionModal.tsx`, shown only for Savings. Withdrawals correctly net out of the monthly Savings total, a tagged goal's progress, **and** correctly credit (not debit) a tagged account's balance — see the full writeup in [[savings-goals-schema]]'s new addendum. History/Recent transaction rows now show a `-` prefix on withdrawals (`formatSignedAmount()` in `lib/format.ts`) so they're visually distinct from deposits.
+- Explicitly out of scope, by user's own choice: withdrawals are standalone (not linked to a Needs/Wants entry), CSV round-trip doesn't carry `kind`, recurring rules stay deposit-only, no floor against over-withdrawal.
+- `tsc`/`npm run check`/`npm test` (228/228) clean. Not browser-tested — user verifying on-device.
+
+## Deposit/withdrawal feature had two real bugs (2026-09-02, same-day follow-up)
+
+User review (same day as the feature above) found: (1) Fast mode silently defaulted every Savings entry to Deposit with no visible indication — the toggle only lived inside the collapsed override panel; (2) Limit/Balance reacted to the *net* Savings total, so depositing (good) could trigger the red OVER alert while withdrawing could silently clear it — backwards.
+
+### Fixed
+- New `fetchSavingsWithdrawn()` feeds a `consumption` prop into `BentoCard`/`BentoCardDetailModal` that drives all Limit/Balance math instead of the net `amount` — Needs/Wants unaffected (prop optional, defaults to `amount`). Detail sheet now shows Net saved / Deposited / Withdrawn as three separate figures for Savings, per the user's request ("both are needed").
+- Fast mode's preview row gained an inline Deposit/Withdrawal chip, visible the moment Savings is detected/selected, tappable to flip instantly — no need to open the override panel. See the full writeup in [[savings-goals-schema]]'s newest addendum.
+- `tsc`/`npm run check`/`npm test` (242/242) clean. Not browser-tested — user verifying on-device.
+
 ## Balance-badge wording refined (2026-09-02, user's manual edit)
 
 Yesterday's balance-vs-limit fix ([[2026-08-30c-session]]/[[2026-08-30d-session]]) gave both over-balance and over-limit badges the identical `"OVER $X"` wording, but `$X` meant different things: the limit's `$X` is the limit itself, the balance's `$X` was the overspend amount — ambiguous. User manually added a distinct `card.overby` i18n key ("OVER BY $X" / "DÉPASSÉ DE") for the balance badge only; the limit badge keeps `card.over`. Reviewed and judged a good, correctly-scoped fix. Two `BentoCard.test.tsx` assertions still expecting the old shared wording were updated to match. `tsc`/`npm run check`/`npm test` (200/200) clean. See [[2026-09-02-session]].

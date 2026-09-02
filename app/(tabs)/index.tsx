@@ -34,6 +34,7 @@ import { EditTransactionModal } from '../../components/EditTransactionModal';
 import {
   initDb,
   fetchCategoryTotals,
+  fetchSavingsWithdrawn,
   fetchRecentTransactions,
   deleteTransaction,
   fetchLimits,
@@ -46,7 +47,7 @@ import {
 } from '../../db/database';
 import { useBudgetStore, type Transaction, type CategoryTotals, type Category } from '../../store/useBudgetStore';
 import { theme } from '../../theme';
-import { formatCurrency } from '../../lib/format';
+import { formatCurrency, formatSignedAmount } from '../../lib/format';
 import { t } from '../../lib/i18n';
 import { subcategoryLabel } from '../../constants/subcategories';
 
@@ -84,7 +85,7 @@ function TransactionRow({ item, onDelete, onEdit }: { item: Transaction; onDelet
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  const formatted = formatCurrency(item.amount);
+  const formatted = formatSignedAmount(item);
   const locale = useBudgetStore((s) => s.locale);
   const date = new Date(item.timestamp).toLocaleDateString(locale, {
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -284,7 +285,7 @@ const modalStyles = StyleSheet.create({
 
 // ─── Dashboard header ─────────────────────────────────────────────────────────
 
-function DashboardHeader({ totals, onOpenLimits, onOpenSettings, onOpenRecurring, onOpenAccounts, onOpenGoals, topInset }: { totals: CategoryTotals; onOpenLimits: () => void; onOpenSettings: () => void; onOpenRecurring: () => void; onOpenAccounts: () => void; onOpenGoals: () => void; topInset: number }) {
+function DashboardHeader({ totals, savingsWithdrawn, onOpenLimits, onOpenSettings, onOpenRecurring, onOpenAccounts, onOpenGoals, topInset }: { totals: CategoryTotals; savingsWithdrawn: number; onOpenLimits: () => void; onOpenSettings: () => void; onOpenRecurring: () => void; onOpenAccounts: () => void; onOpenGoals: () => void; topInset: number }) {
   const limits = useBudgetStore((s) => s.limits);
   const balances = useBudgetStore((s) => s.balances);
   const accounts = useBudgetStore((s) => s.accounts);
@@ -329,6 +330,7 @@ function DashboardHeader({ totals, onOpenLimits, onOpenSettings, onOpenRecurring
             icon={c.icon}
             limit={limits[c.id]}
             balance={balances[c.id]}
+            consumption={c.id === 'savings' ? savingsWithdrawn : undefined}
             onPress={() => setDetailCategory(c.id)}
             testID={`bento-card-${c.id}`}
           />
@@ -345,6 +347,7 @@ function DashboardHeader({ totals, onOpenLimits, onOpenSettings, onOpenRecurring
           amount={totals[detailConfig.id]}
           limit={limits[detailConfig.id]}
           balance={balances[detailConfig.id]}
+          consumption={detailConfig.id === 'savings' ? savingsWithdrawn : undefined}
         />
       )}
 
@@ -448,6 +451,7 @@ const emptyStyles = StyleSheet.create({
 
 export default function DashboardScreen() {
   const [totals, setTotals] = useState<CategoryTotals>({ needs: 0, wants: 0, savings: 0 });
+  const [savingsWithdrawn, setSavingsWithdrawn] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [dbReady, setDbReady] = useState(false);
   const [limitsOpen, setLimitsOpen] = useState(false);
@@ -490,6 +494,7 @@ export default function DashboardScreen() {
   useEffect(() => {
     if (!dbReady) return;
     fetchCategoryTotals().then(setTotals);
+    fetchSavingsWithdrawn().then(setSavingsWithdrawn);
     fetchRecentTransactions(30).then(setTransactions);
     fetchLimits().then((l) => useBudgetStore.getState().setLimits(l));
     fetchBalances().then((b) => useBudgetStore.getState().setBalances(b));
@@ -519,7 +524,7 @@ export default function DashboardScreen() {
           keyExtractor={(item) => String(item.id)}
           renderItem={renderItem}
           ListHeaderComponent={
-            <DashboardHeader totals={totals} onOpenLimits={() => setLimitsOpen(true)} onOpenSettings={() => setSettingsOpen(true)} onOpenRecurring={() => setRecurringOpen(true)} onOpenAccounts={() => setAccountsOpen(true)} onOpenGoals={() => setGoalsOpen(true)} topInset={insets.top} />
+            <DashboardHeader totals={totals} savingsWithdrawn={savingsWithdrawn} onOpenLimits={() => setLimitsOpen(true)} onOpenSettings={() => setSettingsOpen(true)} onOpenRecurring={() => setRecurringOpen(true)} onOpenAccounts={() => setAccountsOpen(true)} onOpenGoals={() => setGoalsOpen(true)} topInset={insets.top} />
           }
           ListEmptyComponent={<EmptyState />}
           contentContainerStyle={[screenStyles.listContent, { paddingBottom: insets.bottom + 16 }]}
