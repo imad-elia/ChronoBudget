@@ -3,17 +3,19 @@ import {
   View,
   Text,
   ScrollView,
+  TouchableOpacity,
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 
-import { fetchMonthlyTotals } from '../../db/database';
+import { fetchMonthlyTotals, getSetting, setSetting } from '../../db/database';
 import { useBudgetStore, type MonthlyTotal } from '../../store/useBudgetStore';
 import { theme } from '../../theme';
 import { formatCompactCurrency } from '../../lib/format';
 import { t } from '../../lib/i18n';
+import type { StringKey } from '../../constants/i18n/en';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -22,6 +24,19 @@ const CATEGORIES = [
   { id: 'wants'   as const, labelKey: 'category.wants'   as const, color: '#FF2D78' },
   { id: 'savings' as const, labelKey: 'category.savings' as const, color: '#00BFFF' },
 ];
+
+type RangeId = '1m' | '3m' | '6m' | '1y' | '3y' | '5y' | 'all';
+
+const RANGE_OPTIONS: { id: RangeId; months: number | 'all'; chipLabelKey: StringKey; subtitleKey: StringKey }[] = [
+  { id: '1m',  months: 1,     chipLabelKey: 'trends.range1m', subtitleKey: 'trends.subtitle1m' },
+  { id: '3m',  months: 3,     chipLabelKey: 'trends.range3m', subtitleKey: 'trends.subtitle3m' },
+  { id: '6m',  months: 6,     chipLabelKey: 'trends.range6m', subtitleKey: 'trends.subtitle6m' },
+  { id: '1y',  months: 12,    chipLabelKey: 'trends.range1y', subtitleKey: 'trends.subtitle1y' },
+  { id: '3y',  months: 36,    chipLabelKey: 'trends.range3y', subtitleKey: 'trends.subtitle3y' },
+  { id: '5y',  months: 60,    chipLabelKey: 'trends.range5y', subtitleKey: 'trends.subtitle5y' },
+  { id: 'all', months: 'all', chipLabelKey: 'trends.rangeAll', subtitleKey: 'trends.subtitleAll' },
+];
+const DEFAULT_RANGE: RangeId = '6m';
 
 function shortMonth(yearMonth: string): string {
   const [year, month] = yearMonth.split('-');
@@ -53,8 +68,15 @@ function MonthlyChart({ data }: { data: MonthlyTotal[] }) {
         </View>
       ))}
 
-      {/* Bars */}
-      <View style={chartStyles.barsRow}>
+      {/* Bars — horizontally scrollable so longer ranges (1yr+) don't squeeze
+          bars illegibly thin; short ranges still fill the row edge-to-edge
+          via flexGrow/flex, same as before, since minWidth only kicks in
+          once the row's natural content width exceeds the container. */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={chartStyles.barsRow}
+      >
         {data.map((month) => {
           const needsH  = (month.needs   / maxVal) * BAR_HEIGHT;
           const wantsH  = (month.wants   / maxVal) * BAR_HEIGHT;
@@ -89,7 +111,7 @@ function MonthlyChart({ data }: { data: MonthlyTotal[] }) {
             </View>
           );
         })}
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -119,6 +141,7 @@ const chartStyles = StyleSheet.create({
     textAlign: 'right',
   },
   barsRow: {
+    flexGrow: 1,
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: theme.spacing.sm,
@@ -127,6 +150,11 @@ const chartStyles = StyleSheet.create({
   },
   monthGroup: {
     flex: 1,
+    // Lets a short range (≤ ~6 months) keep filling the row edge-to-edge via
+    // flex:1 exactly as before; once flex:1 would shrink groups below this
+    // floor (12+ months), they hold this width instead and the ScrollView
+    // above scrolls horizontally rather than squeezing bars illegibly thin.
+    minWidth: 34,
     alignItems: 'center',
     gap: 4,
   },
@@ -238,6 +266,7 @@ const legendStyles = StyleSheet.create({
 export default function TrendsScreen() {
   const [data, setData] = useState<MonthlyTotal[]>([]);
   const [dbReady, setDbReady] = useState(false);
+  const [range, setRange] = useState<RangeId>(DEFAULT_RANGE);
 
   const refreshCounter = useBudgetStore((s) => s.refreshCounter);
   const insets = useSafeAreaInsets();
@@ -246,11 +275,25 @@ export default function TrendsScreen() {
 
   useEffect(() => { setDbReady(true); }, []);
 
+  // Load the persisted range on mount, same pattern as ExpenseInput's input_mode.
+  useEffect(() => {
+    getSetting('trends_range').then((val) => {
+      if (RANGE_OPTIONS.some((r) => r.id === val)) setRange(val as RangeId);
+    });
+  }, []);
+
   useEffect(() => {
     if (!dbReady) return;
-    fetchMonthlyTotals(6).then(setData);
-  }, [refreshCounter, dbReady]);
+    const months = RANGE_OPTIONS.find((r) => r.id === range)!.months;
+    fetchMonthlyTotals(months).then(setData);
+  }, [refreshCounter, dbReady, range]);
 
+  function selectRange(id: RangeId) {
+    setRange(id);
+    setSetting('trends_range', id);
+  }
+
+  const activeRange = RANGE_OPTIONS.find((r) => r.id === range)!;
   const hasData = data.some((m) => m.needs + m.wants + m.savings > 0);
 
   return (
@@ -263,8 +306,33 @@ export default function TrendsScreen() {
         {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
           <Text style={styles.screenTitle}>{t('trends.title')}</Text>
-          <Text style={styles.subtitle}>{t('trends.subtitle')}</Text>
+          <Text style={styles.subtitle}>{t(activeRange.subtitleKey)}</Text>
         </View>
+
+        {/* Range picker */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.rangeScroll}
+          contentContainerStyle={styles.rangeRow}
+        >
+          {RANGE_OPTIONS.map((r) => {
+            const active = r.id === range;
+            return (
+              <TouchableOpacity
+                key={r.id}
+                testID={`trends-range-${r.id}`}
+                style={[styles.rangeChip, active && styles.rangeChipActive]}
+                onPress={() => selectRange(r.id)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.rangeLabel, active && styles.rangeLabelActive]}>
+                  {t(r.chipLabelKey)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
         {hasData ? (
           <>
@@ -300,6 +368,26 @@ const styles = StyleSheet.create({
   },
   screenTitle: { ...theme.typography.headingLarge, color: theme.colors.textPrimary, letterSpacing: 2 },
   subtitle: { ...theme.typography.bodyMedium, color: theme.colors.textMuted },
+  rangeScroll: { flexGrow: 0 },
+  rangeRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.lg,
+  },
+  rangeChip: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  rangeChipActive: {
+    borderColor: theme.colors.neonBlue,
+    backgroundColor: `${theme.colors.neonBlue}18`,
+  },
+  rangeLabel: { ...theme.typography.labelLarge, color: theme.colors.textMuted },
+  rangeLabelActive: { color: theme.colors.neonBlue },
   emptyWrap: {
     flex: 1,
     alignItems: 'center',

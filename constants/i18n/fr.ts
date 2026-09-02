@@ -69,9 +69,22 @@ export const fr: Record<StringKey, string> = {
 
   // Trends
   'trends.title': 'TENDANCES',
-  'trends.subtitle': '6 derniers mois',
   'trends.empty': 'Pas encore assez de données',
   'trends.emptyHint': 'Ajoutez des transactions depuis le tableau de bord pour voir vos tendances de dépenses ici.',
+  'trends.range1m': '1M',
+  'trends.range3m': '3M',
+  'trends.range6m': '6M',
+  'trends.range1y': '1A',
+  'trends.range3y': '3A',
+  'trends.range5y': '5A',
+  'trends.rangeAll': 'Tout',
+  'trends.subtitle1m': 'Dernier mois',
+  'trends.subtitle3m': '3 derniers mois',
+  'trends.subtitle6m': '6 derniers mois',
+  'trends.subtitle1y': 'Dernière année',
+  'trends.subtitle3y': '3 dernières années',
+  'trends.subtitle5y': '5 dernières années',
+  'trends.subtitleAll': 'Tout l’historique',
 
   // Settings
   'settings.title': 'Paramètres',

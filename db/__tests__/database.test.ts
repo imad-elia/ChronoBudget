@@ -363,6 +363,36 @@ describe('fetchMonthlyTotals', () => {
     expect(totals.wants).toBe(100);
     expect(thisMonth.wants).toBe(totals.wants);
   });
+
+  it("'all' returns an empty array when there are no transactions", async () => {
+    expect(await database.fetchMonthlyTotals('all')).toEqual([]);
+  });
+
+  it("'all' spans from the earliest transaction's month through the current month, zero-filling the gap", async () => {
+    const now = new Date();
+    const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 15).getTime();
+
+    await database.insertTransactionsBulk([
+      { amount: 40, category: 'needs', subcategory: 'Groceries', note: '', timestamp: twoMonthsAgo },
+    ]);
+    await database.insertTransaction(60, 'wants', 'Dining', '');
+
+    const monthlyTotals = await database.fetchMonthlyTotals('all');
+    expect(monthlyTotals).toHaveLength(3); // two-months-ago, one-month-ago (zero), current
+
+    const earliestKey = `${new Date(twoMonthsAgo).getFullYear()}-${String(new Date(twoMonthsAgo).getMonth() + 1).padStart(2, '0')}`;
+    const currentKey = database.currentMonthKey();
+
+    expect(monthlyTotals[0].month).toBe(earliestKey);
+    expect(monthlyTotals[0].needs).toBe(40);
+    expect(monthlyTotals.at(-1)!.month).toBe(currentKey);
+    expect(monthlyTotals.at(-1)!.wants).toBe(60);
+
+    const middleMonth = monthlyTotals.find((m) => m.month !== earliestKey && m.month !== currentKey)!;
+    expect(middleMonth.needs).toBe(0);
+    expect(middleMonth.wants).toBe(0);
+    expect(middleMonth.savings).toBe(0);
+  });
 });
 
 describe('insertTransactionsBulk', () => {

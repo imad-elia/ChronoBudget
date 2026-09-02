@@ -69,9 +69,22 @@ export const en = {
 
   // Trends
   'trends.title': 'TRENDS',
-  'trends.subtitle': 'Last 6 months',
   'trends.empty': 'Not enough data yet',
   'trends.emptyHint': 'Add transactions on the Dashboard to see your spending trends here.',
+  'trends.range1m': '1M',
+  'trends.range3m': '3M',
+  'trends.range6m': '6M',
+  'trends.range1y': '1Y',
+  'trends.range3y': '3Y',
+  'trends.range5y': '5Y',
+  'trends.rangeAll': 'All',
+  'trends.subtitle1m': 'Last month',
+  'trends.subtitle3m': 'Last 3 months',
+  'trends.subtitle6m': 'Last 6 months',
+  'trends.subtitle1y': 'Last year',
+  'trends.subtitle3y': 'Last 3 years',
+  'trends.subtitle5y': 'Last 5 years',
+  'trends.subtitleAll': 'All time',
 
   // Settings
   'settings.title': 'Settings',

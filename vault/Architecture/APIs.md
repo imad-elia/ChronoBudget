@@ -220,7 +220,7 @@ Migration strategy: incremental `if (user_version < N)` blocks in `openAndMigrat
 
 | Function | Description |
 |----------|-------------|
-| `fetchMonthlyTotals(months = 6)` | SUM per category grouped by calendar month, zero-filled for the last N months. Buckets with `'localtime'` so it agrees with `fetchCategoryTotals()` — see the note below. |
+| `fetchMonthlyTotals(range: number \| 'all' = 6)` | SUM per category grouped by calendar month, zero-filled for the last N months. `range: 'all'` (2026-09-02, backs the Trends range picker's "All" option) anchors to `MIN(timestamp)`'s local month instead of a fixed lookback — `[]` when there are no transactions. Buckets with `'localtime'` so it agrees with `fetchCategoryTotals()` — see the note below. |
 
 ## Date bucketing — a standing gotcha
 

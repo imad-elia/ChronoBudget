@@ -784,12 +784,31 @@ export async function processRecurring(): Promise<number> {
 
 // ─── Monthly totals (for Trends screen) ──────────────────────────────────────
 
-export async function fetchMonthlyTotals(months = 6): Promise<MonthlyTotal[]> {
+export async function fetchMonthlyTotals(range: number | 'all' = 6): Promise<MonthlyTotal[]> {
   const database = await getDb();
+  const now = new Date();
+
+  let months: number;
+  if (range === 'all') {
+    // Anchor "all" to the earliest transaction's local month instead of a
+    // fixed lookback, same local-time convention as `now` below (plain Date
+    // accessors, no UTC) so it lines up with the 'localtime' bucketing in the
+    // query further down.
+    const [{ minTs }] = await database.getAllAsync<{ minTs: number | null }>(
+      'SELECT MIN(timestamp) AS minTs FROM transactions',
+    );
+    if (minTs == null) return [];
+    const earliest = new Date(minTs);
+    months =
+      (now.getFullYear() - earliest.getFullYear()) * 12 +
+      (now.getMonth() - earliest.getMonth()) +
+      1;
+  } else {
+    months = range;
+  }
 
   // Build a list of the last N months as 'YYYY-MM' strings
   const monthKeys: string[] = [];
-  const now = new Date();
   for (let i = months - 1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);

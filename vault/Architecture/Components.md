@@ -36,7 +36,7 @@ Also owns **CSV export and import**, the app's only file I/O, on a platform bran
 Native modules are `require`d lazily behind `Platform.OS !== 'web'` so the web bundle never touches them.
 
 ### `app/(tabs)/trends.tsx` — Trends
-Six-month bar chart built by hand — no charting library. Calls `fetchMonthlyTotals(6)` on `refreshCounter`. Three local sub-components: `MonthlyChart` (the bars), `SummaryChips` (headline figures) and `Legend`. Falls back to an empty state when every month is zero.
+Bar chart built by hand — no charting library. A range picker (`1M`/`3M`/`6M`/`1Y`/`3Y`/`5Y`/`All`, 2026-09-02) drives `fetchMonthlyTotals(months)` on `refreshCounter`/range change; selection persists via `getSetting`/`setSetting('trends_range', ...)`, same pattern as `ExpenseInput`'s `input_mode`, defaulting to `6M`. Three local sub-components: `MonthlyChart` (the bars — wrapped in a horizontal `ScrollView` with a `minWidth` floor per month group so 1yr+ ranges scroll instead of squeezing bars illegibly thin, while ≤6-month ranges still fill the row edge-to-edge exactly as before), `SummaryChips` (headline figures) and `Legend`. Falls back to an empty state when every month is zero.
 
 ## Input & transaction components
 
