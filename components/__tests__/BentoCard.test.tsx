@@ -36,9 +36,9 @@ describe('BentoCard', () => {
     expect(screen.getByText(/\$58\.00/)).toBeTruthy();
   });
 
-  it('shows an "OVER $amount" badge (same style as the limit badge) when spend exceeds the balance', async () => {
+  it('shows an "OVER BY $amount" badge (same style as the limit badge) when spend exceeds the balance', async () => {
     await render(<BentoCard {...baseProps} amount={120} balance={100} />);
-    expect(screen.getByText('OVER $20.00')).toBeTruthy();
+    expect(screen.getByText('OVER BY $20.00')).toBeTruthy();
     expect(screen.queryByText(/-\$20\.00/)).toBeNull();
     expect(screen.queryByText(/left/)).toBeNull();
   });
@@ -51,7 +51,7 @@ describe('BentoCard', () => {
 
   it('shows both an over-balance badge and an over-limit badge distinctly when both are exceeded', async () => {
     await render(<BentoCard {...baseProps} amount={120} balance={100} limit={50} />);
-    expect(screen.getByText('OVER $20.00')).toBeTruthy();
+    expect(screen.getByText('OVER BY $20.00')).toBeTruthy();
     expect(screen.getByText('OVER $50.00')).toBeTruthy();
   });
 

@@ -175,6 +175,7 @@ export const fr: Record<StringKey, string> = {
   'settings.balancesHint': 'Combien d’argent vous avez par catégorie. Laissez vide si aucun.',
   'card.remaining': 'restant',
   'card.over': 'DÉPASSÉ',
+  'card.overby': 'DÉPASSÉ DE',
 
   // Manual keywords (settings + keywords modal)
   'settings.keywords': 'Mes mots-clés',

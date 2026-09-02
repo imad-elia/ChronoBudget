@@ -1,10 +1,10 @@
-import { View, Text, StyleSheet, Platform, type ViewStyle } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import type { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
-import { theme } from '../theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Platform, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { formatCurrency } from '../lib/format';
 import { t } from '../lib/i18n';
+import { theme } from '../theme';
 import { ProgressBar } from './ProgressBar';
 
 interface BentoCardProps {
@@ -67,7 +67,7 @@ export function BentoCard({ title, amount, color, glowColor, gradientColors, ico
             <View style={styles.overBadge}>
               <Icon name="wallet-outline" size={11} color="#FF2D78" />
               <Text style={styles.overBadgeText} numberOfLines={1}>
-                {`${t('card.over')} ${formatCurrency(Math.abs(remaining))}`}
+                {`${t('card.overby')} ${formatCurrency(Math.abs(remaining))}`}
               </Text>
             </View>
           ) : (

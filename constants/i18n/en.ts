@@ -175,6 +175,7 @@ export const en = {
   'settings.balancesHint': 'How much money you have per category. Leave blank for none.',
   'card.remaining': 'left',
   'card.over': 'OVER',
+  'card.overby': 'OVER BY',
 
   // Manual keywords (settings + keywords modal)
   'settings.keywords': 'My Keywords',
