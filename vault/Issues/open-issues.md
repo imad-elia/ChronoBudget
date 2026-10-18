@@ -4,7 +4,11 @@
 
 None currently.
 
-## CI flake: unstable ordering for same-timestamp transactions (2026-10-18, fixed)
+## CI flake: still intermittent after the ordering fix (2026-10-18, UNRESOLVED, instrumented)
+
+The ordering fix below was real but not the whole story: run 44 (a vault-only commit) failed `npm test` in both the Pacific/Auckland and America/Los_Angeles jobs *after* it, while runs 43 and 45 passed. Local reproduction attempts all passed: 18 runs with `TZ`, 16 with `CB_TZ` (Auckland, Los Angeles; `jest.globalSetup.js` only reads `CB_TZ`), and 5 under heavy CPU load. Job logs need an authenticated request and couldn't be fetched from this environment. To make the next failure readable without logs, CI now runs `npm test -- --reporters=default --reporters=github-actions` (`.github/workflows/ci.yml`), so a failing test appears as an annotation (public API: `/check-runs/{job id}/annotations`). **Next step:** when a run fails, read its annotations (or paste the failed "Run npm test" step output) to get the test name, then fix that test.
+
+### Earlier finding (fixed, but only part of the cause): unstable ordering for same-timestamp transactions
 
 GitHub CI intermittently failed `db/__tests__/database.test.ts` › "inserts, updates, deletes, and totals transactions" (runs 40 and 42, different timezone jobs, so not timezone-related; this is also the "unreproduced parallel-run failure" from the 2026-08-29 Watch note). Reproduced locally at ~2 failures in 6 runs. Root cause was a real app bug, not just a test problem: `fetchRecentTransactions`, `fetchTransactions` (both branches) and `fetchTransfers` used `ORDER BY timestamp DESC` with no tiebreaker, so rows sharing a timestamp tick came back in arbitrary order (the test then updated the wrong row). Fixed with `, id DESC` on all four queries in `db/database.ts`; new regression test "transaction ordering" pins the clock and fails without the fix. 8/8 consecutive full-suite runs pass (258 tests).
 
