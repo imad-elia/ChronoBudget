@@ -4,6 +4,10 @@
 
 None currently.
 
+## CI flake: unstable ordering for same-timestamp transactions (2026-10-18, fixed)
+
+GitHub CI intermittently failed `db/__tests__/database.test.ts` › "inserts, updates, deletes, and totals transactions" (runs 40 and 42, different timezone jobs, so not timezone-related; this is also the "unreproduced parallel-run failure" from the 2026-08-29 Watch note). Reproduced locally at ~2 failures in 6 runs. Root cause was a real app bug, not just a test problem: `fetchRecentTransactions`, `fetchTransactions` (both branches) and `fetchTransfers` used `ORDER BY timestamp DESC` with no tiebreaker, so rows sharing a timestamp tick came back in arbitrary order (the test then updated the wrong row). Fixed with `, id DESC` on all four queries in `db/database.ts`; new regression test "transaction ordering" pins the clock and fails without the fix. 8/8 consecutive full-suite runs pass (258 tests).
+
 ## Found by the user testing the web build in desktop Chrome (2026-08-30)
 
 Seven issues reported after running `npx expo start` and testing in Chrome (not iOS/Android). All fixed same session; user has not yet re-tested in the browser (fixed per explicit instruction not to browser-test myself this round).

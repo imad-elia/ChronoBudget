@@ -434,7 +434,7 @@ export async function fetchRecentTransactions(limit = 20): Promise<Transaction[]
   return database.getAllAsync<Transaction>(
     `SELECT id, amount, category, subcategory, note, timestamp, account_id AS accountId, goal_id AS goalId, kind
      FROM transactions
-     ORDER BY timestamp DESC
+     ORDER BY timestamp DESC, id DESC
      LIMIT ?`,
     limit,
   );
@@ -450,7 +450,7 @@ export async function fetchTransactions(
       `SELECT id, amount, category, subcategory, note, timestamp, account_id AS accountId, goal_id AS goalId, kind
        FROM transactions
        WHERE category = ?
-       ORDER BY timestamp DESC
+       ORDER BY timestamp DESC, id DESC
        LIMIT ?`,
       category,
       limit,
@@ -459,7 +459,7 @@ export async function fetchTransactions(
   return database.getAllAsync<Transaction>(
     `SELECT id, amount, category, subcategory, note, timestamp, account_id AS accountId, goal_id AS goalId, kind
      FROM transactions
-     ORDER BY timestamp DESC
+     ORDER BY timestamp DESC, id DESC
      LIMIT ?`,
     limit,
   );
@@ -636,7 +636,7 @@ export async function fetchTransfers(limit = 50): Promise<Transfer[]> {
   return database.getAllAsync<Transfer>(
     `SELECT id, from_account AS fromAccount, to_account AS toAccount, amount, note, timestamp
      FROM transfers
-     ORDER BY timestamp DESC
+     ORDER BY timestamp DESC, id DESC
      LIMIT ?`,
     limit,
   );

@@ -112,6 +112,28 @@ describe('transactions CRUD', () => {
   });
 });
 
+describe('transaction ordering', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('lists transactions that share a timestamp newest-first, deterministically', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(new Date(2026, 5, 15, 12, 0, 0).getTime());
+    await database.insertTransaction(1, 'needs', 'Groceries', 'first');
+    await database.insertTransaction(2, 'wants', 'Dining', 'second');
+    await database.insertTransaction(3, 'wants', 'Dining', 'third');
+
+    const recent = await database.fetchRecentTransactions();
+    expect(recent.map((r) => r.note)).toEqual(['third', 'second', 'first']);
+
+    const all = await database.fetchTransactions();
+    expect(all.map((r) => r.note)).toEqual(['third', 'second', 'first']);
+
+    const wants = await database.fetchTransactions(500, 'wants');
+    expect(wants.map((r) => r.note)).toEqual(['third', 'second']);
+  });
+});
+
 describe('fetchCategoryTotals (month-scoped)', () => {
   afterEach(() => {
     jest.restoreAllMocks();
