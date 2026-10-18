@@ -27,9 +27,10 @@ interface BentoCardProps {
 
 /** Cross-platform substitute for `adjustsFontSizeToFit`, which RN Web ignores. */
 function amountFontSize(formatted: string): number {
-  if (formatted.length <= 9) return 32;
-  if (formatted.length <= 13) return 26;
-  return 21;
+  // Three cards share a phone-width row, leaving ~90dp of text width each, and
+  // a digit is roughly 0.6em wide: size so the string fits that on one line.
+  const fitted = Math.floor(88 / (formatted.length * 0.6));
+  return Math.max(16, Math.min(32, fitted));
 }
 
 /** Amounts past this switch to compact form ("$12.3K") so they never clip
