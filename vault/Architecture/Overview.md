@@ -4,17 +4,17 @@
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                   Expo Router                        │
-│  app/_layout.tsx  (root — StatusBar, fonts)          │
-│  app/(tabs)/_layout.tsx  (tab bar config)            │
+│                   Expo Router                       │
+│  app/_layout.tsx  (root — StatusBar, fonts)         │
+│  app/(tabs)/_layout.tsx  (tab bar config)           │
 │                                                     │
 │  ┌─────────────────┐  ┌──────────────────────────┐  │
-│  │  index.tsx       │  │  history.tsx             │  │
-│  │  Dashboard       │  │  History + filter chips  │  │
+│  │  index.tsx      │  │  history.tsx             │  │
+│  │  Dashboard      │  │  History + filter chips  │  │
 │  └────────┬────────┘  └───────────┬──────────────┘  │
 └───────────┼───────────────────────┼─────────────────┘
             │                       │
-    ┌───────▼───────────────────────▼──────┐
+    ┌───────▼───────────────────────▼───────┐
     │           Zustand store               │
     │  useBudgetStore.ts                    │
     │  refreshCounter · categoryTotals      │
