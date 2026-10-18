@@ -26,6 +26,13 @@ Standard `development`/`preview`/`production` build profiles, plus a `submit.pro
 ## What this does *not* do
 This makes the project *config-ready* to build and submit — it does not and cannot produce or submit an actual binary. That requires the user's own Apple Developer Program and Google Play Console accounts, real credentials, and running `eas build`/`eas submit` themselves. Also unresolved: Apple's App Store Connect binary processing may flag additional "required reason" APIs pulled in transitively by other dependencies after the first TestFlight upload — normal and expected, and only discoverable by actually uploading a build, which is outside what this session can do.
 
+## Addendum 2026-10-18 — status after the readiness assessment
+
+- **Done:** real app icon set replaced the Expo template placeholders (neon C ring, see [[2026-10-18-session]]); `userInterfaceStyle: "dark"` and black splash/adaptive backgrounds; EAS project linked in `app.json`; seven draft screenshots in `store-assets/screenshots/` (web-build renders at 1290×2796, to be recaptured from a real build).
+- **Still blocking a public release:** contact email TODO in `docs/privacy-policy.html` and no hosted URL; no `eas build` ever run; accounts and `google-service-account.json` needed for `eas submit` (the first Play upload must be done by hand in Play Console); on-device verification backlog and QA plan not executed.
+- **Hosting caveat:** the GitHub repo is currently public. If the user makes it private, free GitHub Pages can no longer serve the privacy policy, which then needs another static host.
+- **Tooling:** EAS CLI is not installed on the dev machine yet.
+
 ## Related notes
 - [[account-aware-budgeting]]
 - [[savings-goals-schema]]
